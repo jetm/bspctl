@@ -1,5 +1,5 @@
 [project]
-name = "varis-build"
+name = "bspctl"
 version = "0.0.1"
 description = "One-command Variscite BSP build orchestrator with observability"
 authors = [{name = "Javier Tia"}]
@@ -34,17 +34,15 @@ dev = [
 ]
 
 [project.scripts]
-varis = "varis_build.cli:app"
+bspctl = "bspctl.cli:app"
 
 [build-system]
-requires = ["setuptools>=75.0"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build"]
+build-backend = "uv_build"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.uv.build-backend]
+module-name = "bspctl"
+module-root = "src"
 
 [tool.uv]
 package = true
