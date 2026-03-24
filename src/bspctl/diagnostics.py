@@ -8,7 +8,7 @@ grouped by severity:
 * ``INFO``  - purely informational, never stops or warns the user
 
 The check list is now BSP-aware: ``SHARED_CHECKS`` runs for every BSP,
-and the dispatched :class:`~varis_build.bsp_model.BspModel.doctor_extras`
+and the dispatched :class:`~bspctl.bsp_model.BspModel.doctor_extras`
 adds the family-specific gates (``check_forks_linux_imx`` and friends
 for NXP; the four ``check_ti_*`` functions for TI). Both ``varis
 doctor`` and the pre-flight gate inside ``varis build`` consume the
@@ -28,10 +28,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from varis_build.config import BuildConfig
+from bspctl.config import BuildConfig
 
 if TYPE_CHECKING:
-    from varis_build.bsp_model import BspModel
+    from bspctl.bsp_model import BspModel
 
 
 class Severity(StrEnum):
@@ -347,7 +347,7 @@ def check_bitbake_override(cfg: BuildConfig) -> CheckResult:
     ``cfg.bsp_bitbake_path`` (NXP: ``sources/poky/bitbake``; TI:
     ``sources/bitbake``) and ``cfg.bsp_root / upstream-bitbake``.
     """
-    from varis_build.steps.bitbake_override import status as override_status
+    from bspctl.steps.bitbake_override import status as override_status
 
     st = override_status(cfg)
     detail_parts: list[str] = [st.detail]
@@ -396,7 +396,7 @@ def check_manifest_consistency(cfg: BuildConfig) -> CheckResult:
     Imported inside the function to keep the workspace/diagnostics
     dependency direction one-way.
     """
-    from varis_build.workspace import detect
+    from bspctl.workspace import detect
 
     state = detect(cfg)
     if not state.repo_initialized:

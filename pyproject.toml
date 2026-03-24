@@ -69,13 +69,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["varis_build"]
+known-first-party = ["bspctl"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/varis_build/cli.py" = ["B008"]
+"src/bspctl/cli.py" = ["B008"]
 
 [tool.coverage.run]
-source = ["varis_build"]
+source = ["bspctl"]
 
 [tool.coverage.report]
 fail_under = 47

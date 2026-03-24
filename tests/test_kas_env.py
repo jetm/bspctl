@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.steps.kas_build._build_env.
+"""Unit tests for bspctl.steps.kas_build._build_env.
 
 Pins the workspace-root ccache bind-mount that supersedes the dangling
 per-BSP ``ccache`` symlinks. Without this mount, kas-container would
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from varis_build.config import BuildConfig
-from varis_build.steps.kas_build import _build_env
+from bspctl.config import BuildConfig
+from bspctl.steps.kas_build import _build_env
 
 if TYPE_CHECKING:
     from pathlib import Path

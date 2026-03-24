@@ -17,7 +17,7 @@ Subcommands:
 * ``varis clean``    - wipe the build/ directory
 * ``varis log``      - tail the latest run's kas.log live
 
-The build pipeline routes through :class:`varis_build.bsp_model.BspModel`
+The build pipeline routes through :class:`bspctl.bsp_model.BspModel`
 - the ``_dispatch_bsp`` helper inspects the manifest filename and the
 ``_dispatch_from_yaml`` helper inspects a kas YAML; both return the
 matching model. NXP and TI share the same set of subcommands; only
@@ -36,24 +36,24 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from varis_build import __version__
-from varis_build.bsp_detect import detect_bsp_from_yaml
-from varis_build.bsp_model import BspModel, detect_bsp_family, get_model
-from varis_build.config import BuildConfig, resolve
-from varis_build.diagnostics import (
+from bspctl import __version__
+from bspctl.bsp_detect import detect_bsp_from_yaml
+from bspctl.bsp_model import BspModel, detect_bsp_family, get_model
+from bspctl.config import BuildConfig, resolve
+from bspctl.diagnostics import (
     CheckResult,
     Severity,
     Status,
     any_blocking_failure,
     run_all,
 )
-from varis_build.kas import KasGenOptions, write_yaml
-from varis_build.observability import RunLogger
-from varis_build.steps import bitbake_override as step_override
-from varis_build.steps import kas_build as step_kas
-from varis_build.steps import stress_parse as step_stress_parse
-from varis_build.triage import analyse
-from varis_build.workspace import detect
+from bspctl.kas import KasGenOptions, write_yaml
+from bspctl.observability import RunLogger
+from bspctl.steps import bitbake_override as step_override
+from bspctl.steps import kas_build as step_kas
+from bspctl.steps import stress_parse as step_stress_parse
+from bspctl.triage import analyse
+from bspctl.workspace import detect
 
 app = typer.Typer(
     help="Variscite BSP orchestrator (NXP i.MX + TI Sitara).",
@@ -145,7 +145,7 @@ def _bsp_from_cwd(workspace: Path) -> Literal["nxp", "ti"] | None:
 def _overlay_dir() -> Path:
     """Locate the ``overlays/`` directory at the varis repo root.
 
-    cli.py lives at ``src/varis_build/cli.py``; the repo root is three
+    cli.py lives at ``src/bspctl/cli.py``; the repo root is three
     parents up. Editable installs land here; wheel installs would need
     package_data and an importlib.resources lookup.
     """
@@ -185,7 +185,7 @@ def _dispatch_bsp(manifest_arg: str | None) -> tuple[Literal["nxp", "ti"], BspMo
     back to the NXP default. Refuses unrecognized shapes with a
     typer.Exit(2) and a hint pointing at the versioning references.
     """
-    from varis_build.config import DEFAULT_NXP_MANIFEST
+    from bspctl.config import DEFAULT_NXP_MANIFEST
 
     pre = manifest_arg or os.environ.get("VARIS_MANIFEST") or DEFAULT_NXP_MANIFEST
     family = detect_bsp_family(Path(pre), config_file=None)
@@ -206,7 +206,7 @@ def _dispatch_from_yaml(yaml_path: Path) -> tuple[Literal["nxp", "ti", "generic"
 
     Used by the BYO ``varis build my.yml`` path. Inspects the YAML's
     ``machine:`` and ``repos:`` blocks via
-    :func:`varis_build.bsp_detect.detect_bsp_from_yaml`. Returns the
+    :func:`bspctl.bsp_detect.detect_bsp_from_yaml`. Returns the
     matching :class:`BspModel` for NXP/TI and ``None`` for generic
     builds (no BspModel applies; the caller layers
     ``varis-tuning-generic.yml`` and skips Variscite-specific pipeline

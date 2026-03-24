@@ -4,12 +4,12 @@ The bitbake parser fork-race is probabilistic: a single passing parse
 is not evidence the override holds. This step loops parse-only N times
 inside ``kas-container``, captures each iteration's stdout+stderr to
 its own log file, and scans for any of the canonical fork-race
-signatures from :mod:`varis_build.fork_race_signatures`.
+signatures from :mod:`bspctl.fork_race_signatures`.
 
 The aggregate result lands in ``summary.json`` next to the per-run
 logs; both files live under
 ``<bsp>/build/runs/<run-id>/stress-parse/``. The CLI consumer in
-:mod:`varis_build.cli` exits non-zero when any iteration tripped a
+:mod:`bspctl.cli` exits non-zero when any iteration tripped a
 signature so the run can gate upstream patch submission for VARIS-13.
 """
 
@@ -22,16 +22,16 @@ import sys
 import time
 from typing import TYPE_CHECKING
 
-from varis_build.fork_race_signatures import FORK_RACE_SIGNATURES
-from varis_build.steps import bitbake_override as step_override
-from varis_build.steps import kas_build as step_kas
+from bspctl.fork_race_signatures import FORK_RACE_SIGNATURES
+from bspctl.steps import bitbake_override as step_override
+from bspctl.steps import kas_build as step_kas
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from varis_build.bsp_model import BspModel
-    from varis_build.config import BuildConfig
-    from varis_build.observability import RunLogger
+    from bspctl.bsp_model import BspModel
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 
 def _clear_parse_cache(cfg: BuildConfig, log: RunLogger, iteration: int) -> bool:
@@ -266,7 +266,7 @@ def run(
     (or ``step_fail``) event per iteration via ``log``.
 
     ``overlay_source`` is the path to the static tuning overlay; passed
-    through to :func:`varis_build.steps.kas_build.run_shell_capture`
+    through to :func:`bspctl.steps.kas_build.run_shell_capture`
     on every iteration so each parse-only run carries the same tuning
     block as a real build.
 

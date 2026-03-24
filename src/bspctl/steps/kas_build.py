@@ -1,6 +1,6 @@
 """Regenerate the kas YAML and run `kas-container build`.
 
-The YAML generator lives in :mod:`varis_build.kas`; this step wraps it
+The YAML generator lives in :mod:`bspctl.kas`; this step wraps it
 plus the build invocation with the measurement harness (``/usr/bin/time
 -v`` plus a background ``du -sb build/tmp`` sampler), and layers in
 the static Variscite tuning overlay (``overlays/varis-tuning-<bsp>.yml``)
@@ -39,12 +39,12 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from varis_build.kas import KasGenOptions, write_yaml
+from bspctl.kas import KasGenOptions, write_yaml
 
 if TYPE_CHECKING:
-    from varis_build.bsp_model import BspModel
-    from varis_build.config import BuildConfig
-    from varis_build.observability import RunLogger
+    from bspctl.bsp_model import BspModel
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 # Bitbake output patterns.  These drive the progress bar in run_build().
 #
@@ -571,7 +571,7 @@ def run_shell_capture(
     are merged and redirected to ``stdout_path`` instead of inheriting
     the parent terminal. Returns the kas-container exit code.
 
-    Used by :mod:`varis_build.steps.stress_parse` to capture each
+    Used by :mod:`bspctl.steps.stress_parse` to capture each
     ``bitbake -p`` iteration's output to its own log file for offline
     fork-race signature scanning.
 

@@ -5,7 +5,7 @@ dispatch a single run for either BSP family. ``bsp_family`` is fixed
 at construction time (the dispatcher in cli.py inspects the manifest
 filename or the user-supplied YAML and feeds the answer into
 :func:`resolve`); every path property branches on that field so the
-rest of varis_build does not have to know about the workspace layout.
+rest of bspctl does not have to know about the workspace layout.
 """
 
 from __future__ import annotations
@@ -205,7 +205,7 @@ def resolve(
     nor env is set, NXP infers it from the manifest filename via
     :data:`BRANCH_BY_MANIFEST_PREFIX`; TI infers it from the
     ``processor-sdk-<poky>-...-<sdk>-config_<var>`` regex via
-    :func:`varis_build.bsp_model.infer_bsp_branch`.
+    :func:`bspctl.bsp_model.infer_bsp_branch`.
 
     ``kas_yaml`` is the BYO override path. When set, it lands in
     :attr:`BuildConfig.kas_yaml_override` and ``cfg.kas_yaml`` returns
@@ -246,7 +246,7 @@ def resolve(
         # Lazy import: bsp_model has no cyclic deps on config.py, but
         # keeping the import inside resolve() keeps module import order
         # flexible.
-        from varis_build.bsp_model import infer_bsp_branch
+        from bspctl.bsp_model import infer_bsp_branch
 
         inferred = infer_bsp_branch(resolved_manifest)
         if inferred == "<unknown>":

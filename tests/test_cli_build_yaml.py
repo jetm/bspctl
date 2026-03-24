@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from varis_build.config import BuildConfig
-from varis_build.steps.kas_build import _resolve_user_yaml, materialize_overlay
+from bspctl.config import BuildConfig
+from bspctl.steps.kas_build import _resolve_user_yaml, materialize_overlay
 
 
 def _cfg_at(workspace: Path, *, family: str = "nxp") -> BuildConfig:
@@ -190,7 +190,7 @@ def test_generic_bsp_root_is_yaml_parent(tmp_path: Path) -> None:
 
 def test_generic_resolve_accepts_minimal_args(tmp_path: Path) -> None:
     """resolve() with bsp_family='generic' fills sensible inert defaults."""
-    from varis_build.config import resolve
+    from bspctl.config import resolve
 
     pilots = tmp_path / "pilot"
     pilots.mkdir()

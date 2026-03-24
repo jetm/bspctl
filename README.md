@@ -295,7 +295,7 @@ workspace to tail the latest run for the dispatched BSP.
 
 ## Architecture
 
-For maintainers: the package lives under `src/varis_build/`.
+For maintainers: the package lives under `src/bspctl/`.
 
 - `cli.py` - typer app; defines `build`, `sync`, `doctor`, `triage`, `shell`,
   `gen-kas`, `clean`, `bitbake-override`, `stress-parse`, `log`. The

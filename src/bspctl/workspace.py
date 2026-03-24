@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from varis_build.config import BuildConfig
+    from bspctl.config import BuildConfig
 
 # -- helpers (used by detect()) ------------------------------------------------
 

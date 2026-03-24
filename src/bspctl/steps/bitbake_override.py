@@ -50,8 +50,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from varis_build.config import BuildConfig
-    from varis_build.observability import RunLogger
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 
 DEFAULT_OVERRIDE_REPO = Path.home() / "repos" / "personal" / "yocto" / "bitbake"

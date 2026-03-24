@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.bsp_model.
+"""Unit tests for bspctl.bsp_model.
 
 Covers detection (NXP / TI / unknown manifest filenames) and the
 ``get_model`` factory; both are pure data lookups so the tests do not
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from varis_build.bsp_model import BspModel, detect_bsp_family, get_model
+from bspctl.bsp_model import BspModel, detect_bsp_family, get_model
 
 # ---------------------------------------------------------------------------
 # detect_bsp_family

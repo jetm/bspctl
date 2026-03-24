@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.workspace.WorkspaceState properties.
+"""Unit tests for bspctl.workspace.WorkspaceState properties.
 
 Pins the bsp_family-scoped behavior of `repo_broken` / `needs_full_reinit`:
 TI has no `.repo/` manifest semantics, so its manifest-include /
@@ -12,7 +12,7 @@ the BSP-bundled bitbake for a local fork).
 
 from __future__ import annotations
 
-from varis_build.workspace import WorkspaceState
+from bspctl.workspace import WorkspaceState
 
 
 def _ti_state(*, repo_initialized: bool = True) -> WorkspaceState:

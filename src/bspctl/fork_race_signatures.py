@@ -1,8 +1,8 @@
 """Canonical bitbake parser fork-race symptom regexes.
 
 Single source of truth for both the post-mortem suggestion engine in
-:mod:`varis_build.triage` and the empirical stress-test harness in
-:mod:`varis_build.steps.stress_parse`. New variants observed in the
+:mod:`bspctl.triage` and the empirical stress-test harness in
+:mod:`bspctl.steps.stress_parse`. New variants observed in the
 wild get added here once and both consumers pick them up.
 
 Background: the upstream bug is a fork-in-multi-threaded-program race
