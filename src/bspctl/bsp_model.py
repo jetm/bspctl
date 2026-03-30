@@ -29,6 +29,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
+from bspctl.vendor_config import load_vendors
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -81,6 +83,9 @@ def detect_bsp_family(
     """
     if manifest_path is not None:
         name = manifest_path.name
+        for vendor in load_vendors():
+            if re.match(vendor.manifest_regex, name):
+                return vendor.family  # type: ignore[return-value]
         if _NXP_MANIFEST_RE.match(name):
             return "nxp"
         if _TI_PROCESSOR_SDK_RE.match(name) or _TI_ARAGO_RE.match(name):
