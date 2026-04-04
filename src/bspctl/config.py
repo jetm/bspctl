@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # NXP defaults (i.MX BSP, scarthgap warmup machine from
 # kb/runbooks/first-bsp-build.md). Any of these can be overridden by
-# VARIS_* env vars; CLI flags override env.
+# BSPCTL_* env vars; CLI flags override env.
 # ---------------------------------------------------------------------------
 
 DEFAULT_NXP_MACHINE = "imx8mp-var-dart"
@@ -200,7 +200,7 @@ def resolve(
 ) -> BuildConfig:
     """Resolve BuildConfig from CLI flags, env vars, and family-specific defaults.
 
-    Precedence, highest to lowest: explicit arg, VARIS_* env var,
+    Precedence, highest to lowest: explicit arg, BSPCTL_* env var,
     BSP-family default. ``repo_branch`` is special: when neither arg
     nor env is set, NXP infers it from the manifest filename via
     :data:`BRANCH_BY_MANIFEST_PREFIX`; TI infers it from the
@@ -237,11 +237,11 @@ def resolve(
         d_machine, d_distro, d_image = DEFAULT_NXP_MACHINE, DEFAULT_NXP_DISTRO, DEFAULT_NXP_IMAGE
         d_manifest, d_branch = DEFAULT_NXP_MANIFEST, DEFAULT_NXP_REPO_BRANCH
 
-    resolved_manifest = pick(manifest, "VARIS_MANIFEST", d_manifest)
+    resolved_manifest = pick(manifest, "BSPCTL_MANIFEST", d_manifest)
 
     if bsp_family == "generic":
         # No manifest, no branch inference - generic mode bypasses both.
-        resolved_branch = pick(repo_branch, "VARIS_REPO_BRANCH", d_branch)
+        resolved_branch = pick(repo_branch, "BSPCTL_REPO_BRANCH", d_branch)
     elif bsp_family == "ti":
         # Lazy import: bsp_model has no cyclic deps on config.py, but
         # keeping the import inside resolve() keeps module import order
@@ -251,22 +251,22 @@ def resolve(
         inferred = infer_bsp_branch(resolved_manifest)
         if inferred == "<unknown>":
             inferred = d_branch
-        resolved_branch = pick(repo_branch, "VARIS_REPO_BRANCH", inferred)
+        resolved_branch = pick(repo_branch, "BSPCTL_REPO_BRANCH", inferred)
     else:
         resolved_branch = pick(
             repo_branch,
-            "VARIS_REPO_BRANCH",
+            "BSPCTL_REPO_BRANCH",
             infer_repo_branch(resolved_manifest, d_branch),
         )
 
     return BuildConfig(
         workspace=workspace.resolve(),
         bsp_family=bsp_family,
-        machine=pick(machine, "VARIS_MACHINE", d_machine),
-        distro=pick(distro, "VARIS_DISTRO", d_distro),
-        image=pick(image, "VARIS_IMAGE", d_image),
+        machine=pick(machine, "BSPCTL_MACHINE", d_machine),
+        distro=pick(distro, "BSPCTL_DISTRO", d_distro),
+        image=pick(image, "BSPCTL_IMAGE", d_image),
         manifest=resolved_manifest,
-        repo_url=os.environ.get("VARIS_REPO_URL", DEFAULT_REPO_URL),
+        repo_url=os.environ.get("BSPCTL_REPO_URL", DEFAULT_REPO_URL),
         repo_branch=resolved_branch,
         container_image=os.environ.get("KAS_CONTAINER_IMAGE", DEFAULT_CONTAINER_IMAGE),
         host_mode=host_mode,

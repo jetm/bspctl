@@ -1,21 +1,21 @@
-"""`varis` CLI entry point.
+"""`bspctl` CLI entry point.
 
 Subcommands:
 
-* ``varis build [<kas.yml>]``  - one-shot orchestration. With a positional
+* ``bspctl build [<kas.yml>]``  - one-shot orchestration. With a positional
   YAML (BYO form) it skips sync/setup-env/gen-kas and goes straight to
   the kas-container build with the static tuning overlay layered on
   top. Without it, the manifest-driven pipeline runs (sync -> setup-env
   -> gen-kas -> overlay -> build).
-* ``varis sync``     - run the manifest-driven sync (repo init+sync for
+* ``bspctl sync``     - run the manifest-driven sync (repo init+sync for
   NXP, oe-layertool populate for TI) and bblayers regeneration. Useful
   when you want to refresh ``sources/`` without building.
-* ``varis doctor``   - run the diagnosis standalone
-* ``varis triage``   - post-mortem the last (or named) run
-* ``varis shell``    - drop into a kas-container shell for the project
-* ``varis gen-kas``  - regenerate the topology-only kas YAML (no tuning)
-* ``varis clean``    - wipe the build/ directory
-* ``varis log``      - tail the latest run's kas.log live
+* ``bspctl doctor``   - run the diagnosis standalone
+* ``bspctl triage``   - post-mortem the last (or named) run
+* ``bspctl shell``    - drop into a kas-container shell for the project
+* ``bspctl gen-kas``  - regenerate the topology-only kas YAML (no tuning)
+* ``bspctl clean``    - wipe the build/ directory
+* ``bspctl log``      - tail the latest run's kas.log live
 
 The build pipeline routes through :class:`bspctl.bsp_model.BspModel`
 - the ``_dispatch_bsp`` helper inspects the manifest filename and the
@@ -56,7 +56,7 @@ from bspctl.triage import analyse
 from bspctl.workspace import detect
 
 app = typer.Typer(
-    help="Variscite BSP orchestrator (NXP i.MX + TI Sitara).",
+    help="BSP orchestrator (Variscite NXP + TI built-in).",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -66,7 +66,7 @@ console = Console()
 
 def _version(value: bool) -> None:
     if value:
-        console.print(f"varis {__version__}")
+        console.print(f"bspctl {__version__}")
         raise typer.Exit()
 
 
@@ -114,7 +114,7 @@ def _resolve_workspace(
 ) -> Path:
     """Resolve the workspace path with a BYO+generic carve-out.
 
-    Generic mode (``varis build my.yml`` where ``my.yml`` does not
+    Generic mode (``bspctl build my.yml`` where ``my.yml`` does not
     target a Variscite SoM) does not own a workspace subtree - the
     overlay symlink and per-run state land next to the user's YAML.
     Skip the cwd walk in that case so generic builds work from any
@@ -162,7 +162,7 @@ def _overlay_for(bsp: BspModel | None) -> Path:
     """Return the absolute path to the static tuning overlay.
 
     ``bsp=None`` selects ``varis-tuning-generic.yml`` - the BSP-agnostic
-    overlay used by the ``varis build my.yml`` flow when the YAML does
+    overlay used by the ``bspctl build my.yml`` flow when the YAML does
     not classify as NXP or TI.
     """
     filename = bsp.tuning_overlay_filename if bsp is not None else "varis-tuning-generic.yml"
@@ -173,8 +173,8 @@ def _overlay_for(bsp: BspModel | None) -> Path:
 
 
 def _clean_build_dir(cfg: BuildConfig) -> None:
-    """Remove the BSP-specific ``build/`` dir. Shared by ``varis clean``
-    and ``varis build --clean``. No-op if the dir is already absent.
+    """Remove the BSP-specific ``build/`` dir. Shared by ``bspctl clean``
+    and ``bspctl build --clean``. No-op if the dir is already absent.
     """
     import shutil
 
@@ -187,13 +187,13 @@ def _clean_build_dir(cfg: BuildConfig) -> None:
 def _dispatch_bsp(manifest_arg: str | None) -> tuple[Literal["nxp", "ti"], BspModel]:
     """Detect the BSP family from the manifest filename and return ``(family, model)``.
 
-    Inspects ``--manifest`` first, then ``VARIS_MANIFEST``, then falls
+    Inspects ``--manifest`` first, then ``BSPCTL_MANIFEST``, then falls
     back to the NXP default. Refuses unrecognized shapes with a
     typer.Exit(2) and a hint pointing at the versioning references.
     """
     from bspctl.config import DEFAULT_NXP_MANIFEST
 
-    pre = manifest_arg or os.environ.get("VARIS_MANIFEST") or DEFAULT_NXP_MANIFEST
+    pre = manifest_arg or os.environ.get("BSPCTL_MANIFEST") or DEFAULT_NXP_MANIFEST
     family = detect_bsp_family(Path(pre), config_file=None)
     if family == "unknown":
         console.print(
@@ -210,7 +210,7 @@ def _dispatch_bsp(manifest_arg: str | None) -> tuple[Literal["nxp", "ti"], BspMo
 def _dispatch_from_yaml(yaml_path: Path) -> tuple[Literal["nxp", "ti", "generic"], BspModel | None]:
     """Detect the BSP family from a kas YAML and return ``(family, model)``.
 
-    Used by the BYO ``varis build my.yml`` path. Inspects the YAML's
+    Used by the BYO ``bspctl build my.yml`` path. Inspects the YAML's
     ``machine:`` and ``repos:`` blocks via
     :func:`bspctl.bsp_detect.detect_bsp_from_yaml`. Returns the
     matching :class:`BspModel` for NXP/TI and ``None`` for generic
@@ -373,13 +373,13 @@ def build(
 
     Two forms:
 
-    * **BYO**: ``varis build my.yml`` - skip sync/setup-env/gen-kas,
+    * **BYO**: ``bspctl build my.yml`` - skip sync/setup-env/gen-kas,
       apply the static tuning overlay, run kas-container. The YAML is
       classified as NXP, TI, or generic (a kas YAML that does not
       target a Variscite SoM). Generic mode picks
       ``varis-tuning-generic.yml`` and skips the bitbake-override step
       since that swaps the Variscite-bundled bitbake.
-    * **Manifest-driven**: ``varis build -f imx-6.12.49-2.2.0.xml -m imx95-var-dart`` -
+    * **Manifest-driven**: ``bspctl build -f imx-6.12.49-2.2.0.xml -m imx95-var-dart`` -
       run sync, setup-env, gen-kas (topology-only), then apply overlay
       and build. Same flag surface as before, just with the optimization
       stack moved to the overlay file.
@@ -412,7 +412,7 @@ def build(
     overlay_source = _overlay_for(bsp)
 
     label = f"BYO {kas_yaml}" if byo_form else f"{cfg.machine} / {cfg.distro} / {cfg.image}"
-    console.print(f"[bold]::[/] varis build [{family}] {label}")
+    console.print(f"[bold]::[/] bspctl build [{family}] {label}")
 
     if clean:
         _clean_build_dir(cfg)
@@ -485,7 +485,7 @@ def build(
             # ``nxp/sources/poky/bitbake`` (NXP) or ``ti/sources/bitbake``
             # (TI) for a symlink to the local upstream clone. No-op when the
             # BSP-bundled tree is missing (pre-bootstrap) or when
-            # ``VARIS_BITBAKE_OVERRIDE=0``.
+            # ``BSPCTL_BITBAKE_OVERRIDE=0``.
             step_override.apply(cfg, log)
 
             # 4. regenerate kas YAML (always: args may have changed)
@@ -505,7 +505,7 @@ def build(
         )
         if rc != 0:
             console.print(
-                f"[red]kas-container build failed (exit {rc}).[/] Run `varis triage {log.run_id}` for details."
+                f"[red]kas-container build failed (exit {rc}).[/] Run `bspctl triage {log.run_id}` for details."
             )
             raise typer.Exit(code=rc)
         deploy = cfg.bsp_root / "build" / "tmp" / "deploy" / "images" / cfg.machine
@@ -551,7 +551,7 @@ def sync(
 ) -> None:
     """Run the manifest-driven sync without building.
 
-    Equivalent to the first half of ``varis build``: doctor, then
+    Equivalent to the first half of ``bspctl build``: doctor, then
     repo init+sync (NXP) or oe-layertool populate (TI), then var-setup-release
     or local.conf fixup. Useful when you want to refresh ``sources/``
     without kicking off a kas-container build.
@@ -568,7 +568,7 @@ def sync(
         repo_branch=branch,
     )
 
-    console.print(f"[bold]::[/] varis sync [{family}] manifest={cfg.manifest}")
+    console.print(f"[bold]::[/] bspctl sync [{family}] manifest={cfg.manifest}")
 
     if clean:
         _clean_build_dir(cfg)
@@ -820,7 +820,7 @@ def gen_kas(
     Output is the manifest -> repos topology only. The Variscite tuning
     block and the meta-varis-overrides repo entry live in the static
     overlay at ``overlays/varis-tuning-<bsp>.yml`` and are layered in
-    by ``varis build`` at run time.
+    by ``bspctl build`` at run time.
 
     Default output path is ``<bsp_root>/kas-<bsp>.yml``; use
     ``-o my-build.yml`` to write somewhere else.
@@ -884,7 +884,7 @@ def bitbake_override_cmd(
         typer.Option(
             "--repo",
             help="Path to the upstream bitbake source repo. "
-            "Defaults to ~/repos/personal/yocto/bitbake or VARIS_BITBAKE_OVERRIDE_REPO.",
+            "Defaults to ~/repos/personal/yocto/bitbake or BSPCTL_BITBAKE_OVERRIDE_REPO.",
         ),
     ] = None,
     manifest: Annotated[
@@ -892,7 +892,7 @@ def bitbake_override_cmd(
         typer.Option(
             "--manifest",
             "-f",
-            help="Manifest filename used to dispatch BSP family. Defaults to VARIS_MANIFEST or the NXP default.",
+            help="Manifest filename used to dispatch BSP family. Defaults to BSPCTL_MANIFEST or the NXP default.",
         ),
     ] = None,
     workspace: Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace root override")] = None,
@@ -900,12 +900,12 @@ def bitbake_override_cmd(
     """Swap the BSP-bundled bitbake for a symlink to a local upstream checkout.
 
     Default action with no flags is --status. Use --apply to swap, --revert
-    to remove the symlink (next ``varis build`` re-syncs to restore the BSP
-    bitbake). The override is auto-applied as part of ``varis build``.
+    to remove the symlink (next ``bspctl build`` re-syncs to restore the BSP
+    bitbake). The override is auto-applied as part of ``bspctl build``.
 
     The path swapped depends on the dispatched BSP family: NXP swaps
     ``nxp/sources/poky/bitbake``; TI swaps ``ti/sources/bitbake``. Pass
-    ``--manifest`` (or set ``VARIS_MANIFEST``) to target TI; without it
+    ``--manifest`` (or set ``BSPCTL_MANIFEST``) to target TI; without it
     the command defaults to the NXP family.
     """
     selected = sum(1 for f in (apply_flag, revert_flag, status_flag) if f)
@@ -1035,7 +1035,7 @@ def stress_parse(
     ``<bsp>/build/runs/<run-id>/stress-parse/``. Exits non-zero if any
     iteration tripped a signature.
 
-    Assumes the workspace is already synced (run ``varis build`` once
+    Assumes the workspace is already synced (run ``bspctl build`` once
     first); applies the bitbake override and regenerates the kas YAML
     before looping. Skips the doctor pre-flight - the user opts into
     stress-parse explicitly.
@@ -1065,7 +1065,7 @@ def stress_parse(
     overlay_source = _overlay_for(bsp)
 
     console.print(
-        f"[bold]::[/] varis stress-parse [{family}] {cfg.machine} / {cfg.image} "
+        f"[bold]::[/] bspctl stress-parse [{family}] {cfg.machine} / {cfg.image} "
         f"target={target} runs={runs}"
         + (f" parse-threads={parse_threads}" if parse_threads is not None else "")
         + (" [host-mode]" if host_mode else "")
@@ -1170,7 +1170,7 @@ def _tail_follow(path: Path, history_lines: int = 40) -> None:
     Seeking straight to EOF hides everything already written to the log,
     so if the build is between writes when the user opens the tail, the
     screen stays blank. Emit a chunk of recent history first (matches
-    `tail -f` default behavior) so `varis log` is useful mid-run.
+    `tail -f` default behavior) so `bspctl log` is useful mid-run.
     """
     with path.open("r", encoding="utf-8", errors="replace") as fh:
         lines = fh.readlines()
@@ -1214,9 +1214,9 @@ def log_cmd(
         typer.Option("--workspace", "-w", help="Workspace root override"),
     ] = None,
 ) -> None:
-    """Tail the latest varis run's kas.log live. Use --run for a specific run, --which to pick a different log file.
+    """Tail the latest bspctl run's kas.log live. Use --run for a specific run, --which to pick a different log file.
 
-    Pass a positional kas YAML for BYO builds (``varis log my.yml``);
+    Pass a positional kas YAML for BYO builds (``bspctl log my.yml``);
     runs live next to the YAML under ``<yaml-parent>/build/runs/`` and
     the workspace lookup is skipped.
     """
@@ -1236,7 +1236,7 @@ def log_cmd(
     cfg = resolve(workspace=ws, bsp_family=family, manifest=manifest, kas_yaml=kas_yaml)
     runs_dir = cfg.runs_dir
     if not runs_dir.is_dir():
-        console.print("[red]no runs yet[/]; start one with `varis build`")
+        console.print("[red]no runs yet[/]; start one with `bspctl build`")
         raise typer.Exit(code=1)
 
     run_dirs = sorted(
@@ -1244,7 +1244,7 @@ def log_cmd(
         key=lambda p: p.name,
     )
     if not run_dirs:
-        console.print("[red]no runs yet[/]; start one with `varis build`")
+        console.print("[red]no runs yet[/]; start one with `bspctl build`")
         raise typer.Exit(code=1)
 
     if run is None:

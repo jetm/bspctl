@@ -369,7 +369,7 @@ def check_bitbake_override(cfg: BuildConfig) -> CheckResult:
             fix_hint="Run `varis bitbake-override --apply` (or it auto-applies on `varis build`).",
         )
     if st.state == "disabled":
-        return _skip("bitbake-override", Severity.INFO, "VARIS_BITBAKE_OVERRIDE=0")
+        return _skip("bitbake-override", Severity.INFO, "BSPCTL_BITBAKE_OVERRIDE=0")
     return _skip("bitbake-override", Severity.INFO, detail)
 
 

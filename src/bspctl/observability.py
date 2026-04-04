@@ -5,7 +5,7 @@ containing:
 
     events.jsonl    one JSON object per step start/end/error (machine-readable)
     console.log     the same content in human-readable lines
-    env.txt         snapshot of VARIS_*, KAS_*, NPROC, DL_DIR, SSTATE_DIR at start
+    env.txt         snapshot of BSPCTL_*, KAS_*, NPROC, DL_DIR, SSTATE_DIR at start
     kas.log         stdout+stderr from kas-container build
     time.log        /usr/bin/time -v output (when available)
     du.tsv          periodic `du -sb build/tmp` samples
@@ -116,7 +116,7 @@ class RunLogger:
         self._events_fh.flush()
 
     def _snapshot_env(self) -> None:
-        keep_prefixes = ("VARIS_", "KAS_", "BB_", "DL_", "SSTATE_", "NPROC", "MACHINE", "DISTRO")
+        keep_prefixes = ("BSPCTL_", "KAS_", "BB_", "DL_", "SSTATE_", "NPROC", "MACHINE", "DISTRO")
         lines = [f"{k}={v}" for k, v in sorted(os.environ.items()) if k.startswith(keep_prefixes)]
         self.env_snapshot_path.write_text("\n".join(lines) + "\n")
 
