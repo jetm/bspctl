@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+
+_VALID_FAMILIES = {"nxp", "ti"}
+_MAX_REGEX_LEN = 200
 
 
 @dataclass
@@ -19,6 +23,23 @@ class VendorEntry:
     default_branch: str | None = None
     branch_by_manifest_prefix: dict[str, str] | None = None
     tuning_overlay: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.family not in _VALID_FAMILIES:
+            raise ValueError(
+                f"VendorEntry '{self.name}': family must be one of {sorted(_VALID_FAMILIES)}, got '{self.family}'"
+            )
+        if len(self.manifest_regex) > _MAX_REGEX_LEN:
+            raise ValueError(
+                f"VendorEntry '{self.name}': manifest_regex exceeds"
+                f" {_MAX_REGEX_LEN} characters (got {len(self.manifest_regex)})"
+            )
+        try:
+            re.compile(self.manifest_regex)
+        except re.error as exc:
+            raise ValueError(
+                f"VendorEntry '{self.name}': manifest_regex is not a valid regular expression: {exc}"
+            ) from exc
 
 
 def load_vendors(path: Path | None = None) -> list[VendorEntry]:
