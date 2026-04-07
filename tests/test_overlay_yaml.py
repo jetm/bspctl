@@ -69,32 +69,32 @@ def test_ti_overlay_has_kas_header(ti_overlay: dict) -> None:
 
 
 def test_nxp_overlay_carries_shared_tuning(nxp_overlay: dict) -> None:
-    body = nxp_overlay["local_conf_header"]["varis-tuning"]
+    body = nxp_overlay["local_conf_header"]["bspctl-tuning"]
     for needle in _SHARED_LINES:
         assert needle in body, f"NXP overlay missing: {needle!r}"
 
 
 def test_nxp_overlay_carries_nxp_only_tuning(nxp_overlay: dict) -> None:
-    body = nxp_overlay["local_conf_header"]["varis-tuning"]
+    body = nxp_overlay["local_conf_header"]["bspctl-tuning"]
     for needle in _NXP_ONLY_LINES:
         assert needle in body, f"NXP overlay missing: {needle!r}"
 
 
 def test_ti_overlay_carries_shared_tuning(ti_overlay: dict) -> None:
-    body = ti_overlay["local_conf_header"]["varis-tuning"]
+    body = ti_overlay["local_conf_header"]["bspctl-tuning"]
     for needle in _SHARED_LINES:
         assert needle in body, f"TI overlay missing: {needle!r}"
 
 
 def test_ti_overlay_omits_nxp_specific_knobs(ti_overlay: dict) -> None:
     """ACCEPT_FSL_EULA and renderdoc are NXP-specific."""
-    body = ti_overlay["local_conf_header"]["varis-tuning"]
+    body = ti_overlay["local_conf_header"]["bspctl-tuning"]
     assert "ACCEPT_FSL_EULA" not in body
     assert "renderdoc" not in body
 
 
 def test_ti_overlay_carries_ti_fork_premirrors(ti_overlay: dict) -> None:
-    body = ti_overlay["local_conf_header"]["varis-tuning"]
+    body = ti_overlay["local_conf_header"]["bspctl-tuning"]
     assert "/work/forks/ti-linux-kernel" in body
     assert "/work/forks/ti-u-boot" in body
 
@@ -117,21 +117,21 @@ def test_generic_overlay_has_kas_header(generic_overlay: dict) -> None:
 
 
 def test_generic_overlay_carries_shared_tuning(generic_overlay: dict) -> None:
-    body = generic_overlay["local_conf_header"]["varis-tuning"]
+    body = generic_overlay["local_conf_header"]["bspctl-tuning"]
     for needle in _SHARED_LINES:
         assert needle in body, f"generic overlay missing: {needle!r}"
 
 
 def test_generic_overlay_omits_nxp_specific_knobs(generic_overlay: dict) -> None:
     """The generic overlay must not pull in NXP-only knobs."""
-    body = generic_overlay["local_conf_header"]["varis-tuning"]
+    body = generic_overlay["local_conf_header"]["bspctl-tuning"]
     assert "ACCEPT_FSL_EULA" not in body
     assert "renderdoc" not in body
     assert "linux-imx" not in body
 
 
 def test_generic_overlay_omits_ti_specific_knobs(generic_overlay: dict) -> None:
-    body = generic_overlay["local_conf_header"]["varis-tuning"]
+    body = generic_overlay["local_conf_header"]["bspctl-tuning"]
     assert "ti-linux-kernel" not in body
     assert "ti-u-boot" not in body
 
