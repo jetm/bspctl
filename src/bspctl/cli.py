@@ -829,10 +829,11 @@ def shell(
 @app.command()
 def run(
     kas_yaml: Annotated[
-        Path,
+        str,
         typer.Argument(
-            exists=False,
-            help="kas YAML identifying the target machine (e.g. kas/machine/qemux86-64.yml).",
+            help="kas YAML identifying the target machine. Accepts colon-separated overlays "
+            "(e.g. kas/machine/qemux86-64.yml:kas/target/qemu-provision.yml); overlays are "
+            "ignored for machine resolution but allow the same invocation used with build.",
         ),
     ],
     swtpm: Annotated[
@@ -855,12 +856,13 @@ def run(
 
     Only supported for meta-avocado builds (avocado-qemux86-64, avocado-qemuarm64).
     """
-    family, _ = _dispatch_from_yaml(kas_yaml)
-    ws = _resolve_workspace(workspace, kas_yaml=kas_yaml, family=family)
+    main_yaml = Path(kas_yaml.split(":")[0])
+    family, _ = _dispatch_from_yaml(main_yaml)
+    ws = _resolve_workspace(workspace, kas_yaml=main_yaml, family=family)
     cfg = resolve(
         workspace=ws,
         bsp_family=family,
-        kas_yaml=kas_yaml,
+        kas_yaml=main_yaml,
     )
 
     if not cfg.is_meta_avocado:
@@ -870,7 +872,7 @@ def run(
     cfg.runs_dir.mkdir(parents=True, exist_ok=True)
     with RunLogger(runs_dir=cfg.runs_dir) as log:
         try:
-            rc = step_run.run_qemu(cfg, log, swtpm=swtpm, kas_yaml=kas_yaml)
+            rc = step_run.run_qemu(cfg, log, swtpm=swtpm, kas_yaml=main_yaml)
         except FileNotFoundError as exc:
             console.print(f"[red]{exc}[/]")
             raise typer.Exit(code=2) from None
