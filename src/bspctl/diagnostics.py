@@ -544,6 +544,43 @@ def check_forks_ti_u_boot(cfg: BuildConfig) -> CheckResult:
     return _ok("forks-ti-u-boot", Severity.INFO, "present (PREMIRROR will use it)")
 
 
+def check_bitbake_locks(cfg: BuildConfig) -> CheckResult:
+    """Remove stale bitbake lock files and report the result.
+
+    A stale lock left by a crashed build prevents the next invocation from
+    starting. This check auto-repairs: if the owning PID is gone the lock
+    is removed and the result is a pass. If a live bitbake holds the lock
+    the check fails with BLOCK so the user knows a build is in progress.
+    """
+    lock = cfg.bsp_root / "build" / "bitbake.lock"
+    if not lock.exists():
+        return _ok("bitbake-locks", Severity.BLOCK, "no stale locks")
+    try:
+        pid = int(lock.read_text().strip())
+    except (ValueError, OSError):
+        lock.unlink(missing_ok=True)
+        return _ok("bitbake-locks", Severity.BLOCK, "unreadable lock removed")
+    try:
+        os.kill(pid, 0)
+        cmdline_path = Path(f"/proc/{pid}/cmdline")
+        if cmdline_path.exists():
+            cmdline = cmdline_path.read_bytes().replace(b"\x00", b" ").decode(errors="replace")
+            if "bitbake" not in cmdline.lower():
+                lock.unlink(missing_ok=True)
+                return _ok("bitbake-locks", Severity.BLOCK, f"stale lock (PID {pid} reused) removed")
+        return _fail(
+            "bitbake-locks",
+            Severity.BLOCK,
+            f"bitbake.lock held by PID {pid} - another build is running",
+            fix_hint="wait for the running build to finish or kill it, then re-run doctor",
+        )
+    except ProcessLookupError:
+        lock.unlink(missing_ok=True)
+        return _ok("bitbake-locks", Severity.BLOCK, f"stale lock (PID {pid} gone) removed")
+    except PermissionError:
+        return _skip("bitbake-locks", Severity.BLOCK, f"cannot signal PID {pid} to check liveness")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -565,6 +602,7 @@ SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_disk_free,
     check_memory,
     check_bitbake_override,
+    check_bitbake_locks,
 )
 
 
