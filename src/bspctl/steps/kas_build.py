@@ -283,6 +283,41 @@ def regenerate_yaml(cfg: BuildConfig, log: RunLogger, *, bsp: BspModel) -> None:
     sys.stdout.flush()
 
 
+def clear_stale_bitbake_locks(cfg: BuildConfig) -> list[Path]:
+    """Remove stale bitbake.lock files when the owning process is gone.
+
+    BitBake writes its PID into ``<build>/bitbake.lock`` at startup and
+    removes it on clean exit. A crash leaves the file behind, causing the
+    next invocation to refuse to start ("bitbake is already running").
+
+    Returns the list of lock files removed.
+    """
+    removed: list[Path] = []
+    lock = cfg.bsp_root / "build" / "bitbake.lock"
+    if not lock.exists():
+        return removed
+    try:
+        pid = int(lock.read_text().strip())
+    except (ValueError, OSError):
+        lock.unlink(missing_ok=True)
+        return [lock]
+    try:
+        os.kill(pid, 0)
+        # Process exists - confirm it is actually bitbake before leaving the lock alone.
+        cmdline_path = Path(f"/proc/{pid}/cmdline")
+        if cmdline_path.exists():
+            cmdline = cmdline_path.read_bytes().replace(b"\x00", b" ").decode(errors="replace")
+            if "bitbake" not in cmdline.lower():
+                lock.unlink(missing_ok=True)
+                removed.append(lock)
+    except ProcessLookupError:
+        lock.unlink(missing_ok=True)
+        removed.append(lock)
+    except PermissionError:
+        pass
+    return removed
+
+
 def run_build(
     cfg: BuildConfig,
     log: RunLogger,
@@ -305,6 +340,10 @@ def run_build(
     (colon-syntax: ``bspctl build main.yml:extra.yml``). Each is materialized
     into ``.varis/overlays/`` alongside the main tuning overlay.
     """
+    removed = clear_stale_bitbake_locks(cfg)
+    for lock in removed:
+        log.warn(f"removed stale bitbake lock: {lock} (owning process was gone)")
+
     log.step_start("kas_build", yaml=str(kas_yaml), overlay=str(overlay_source))
     cfg.measurements_dir.mkdir(parents=True, exist_ok=True)
     if cfg.is_meta_avocado:
