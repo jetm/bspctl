@@ -545,29 +545,44 @@ def check_forks_ti_u_boot(cfg: BuildConfig) -> CheckResult:
 
 
 def check_bitbake_locks(cfg: BuildConfig) -> CheckResult:
-    """Remove stale bitbake lock files and report the result.
+    """Remove stale bitbake lock and socket files and report the result.
 
-    A stale lock left by a crashed build prevents the next invocation from
-    starting. This check auto-repairs: if the owning PID is gone the lock
-    is removed and the result is a pass. If a live bitbake holds the lock
-    the check fails with BLOCK so the user knows a build is in progress.
+    A crashed build leaves bitbake.lock, bitbake.sock, and hashserve.sock
+    behind. This check auto-repairs: if the owning PID is gone all three
+    are removed. If a live bitbake holds the lock the check fails with BLOCK
+    so the user knows a build is in progress.
     """
-    lock = cfg.bsp_root / "build" / "bitbake.lock"
+    from bspctl.steps.kas_build import clear_stale_bitbake_locks
+
+    build_dir = cfg.bsp_root / "build"
+    lock = build_dir / "bitbake.lock"
+    sockets = [build_dir / "bitbake.sock", build_dir / "hashserve.sock"]
+    stale_sockets = [s for s in sockets if s.exists() or s.is_socket()]
+
     if not lock.exists():
-        return _ok("bitbake-locks", Severity.BLOCK, "no stale locks")
+        if stale_sockets:
+            for s in stale_sockets:
+                s.unlink(missing_ok=True)
+            names = ", ".join(s.name for s in stale_sockets)
+            return _ok("bitbake-locks", Severity.BLOCK, f"orphaned sockets removed: {names}")
+        return _ok("bitbake-locks", Severity.BLOCK, "no stale locks or sockets")
+
     try:
         pid = int(lock.read_text().strip())
     except (ValueError, OSError):
-        lock.unlink(missing_ok=True)
-        return _ok("bitbake-locks", Severity.BLOCK, "unreadable lock removed")
+        removed = clear_stale_bitbake_locks(cfg)
+        names = ", ".join(p.name for p in removed)
+        return _ok("bitbake-locks", Severity.BLOCK, f"unreadable lock and sockets removed: {names}")
+
     try:
         os.kill(pid, 0)
         cmdline_path = Path(f"/proc/{pid}/cmdline")
         if cmdline_path.exists():
             cmdline = cmdline_path.read_bytes().replace(b"\x00", b" ").decode(errors="replace")
             if "bitbake" not in cmdline.lower():
-                lock.unlink(missing_ok=True)
-                return _ok("bitbake-locks", Severity.BLOCK, f"stale lock (PID {pid} reused) removed")
+                removed = clear_stale_bitbake_locks(cfg)
+                names = ", ".join(p.name for p in removed)
+                return _ok("bitbake-locks", Severity.BLOCK, f"stale files removed (PID {pid} reused): {names}")
         return _fail(
             "bitbake-locks",
             Severity.BLOCK,
@@ -575,8 +590,9 @@ def check_bitbake_locks(cfg: BuildConfig) -> CheckResult:
             fix_hint="wait for the running build to finish or kill it, then re-run doctor",
         )
     except ProcessLookupError:
-        lock.unlink(missing_ok=True)
-        return _ok("bitbake-locks", Severity.BLOCK, f"stale lock (PID {pid} gone) removed")
+        removed = clear_stale_bitbake_locks(cfg)
+        names = ", ".join(p.name for p in removed)
+        return _ok("bitbake-locks", Severity.BLOCK, f"stale files removed (PID {pid} gone): {names}")
     except PermissionError:
         return _skip("bitbake-locks", Severity.BLOCK, f"cannot signal PID {pid} to check liveness")
 

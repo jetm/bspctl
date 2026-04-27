@@ -284,23 +284,41 @@ def regenerate_yaml(cfg: BuildConfig, log: RunLogger, *, bsp: BspModel) -> None:
 
 
 def clear_stale_bitbake_locks(cfg: BuildConfig) -> list[Path]:
-    """Remove stale bitbake.lock files when the owning process is gone.
+    """Remove stale bitbake lock and socket files when the owning process is gone.
 
     BitBake writes its PID into ``<build>/bitbake.lock`` at startup and
-    removes it on clean exit. A crash leaves the file behind, causing the
-    next invocation to refuse to start ("bitbake is already running").
+    removes it on clean exit. A crash leaves the lock and both Unix sockets
+    (``bitbake.sock``, ``hashserve.sock``) behind, causing the next
+    invocation to refuse to start ("bitbake is already running").
 
-    Returns the list of lock files removed.
+    Returns the list of paths removed.
     """
-    removed: list[Path] = []
-    lock = cfg.bsp_root / "build" / "bitbake.lock"
-    if not lock.exists():
+    build_dir = cfg.bsp_root / "build"
+    lock = build_dir / "bitbake.lock"
+    sockets = [build_dir / "bitbake.sock", build_dir / "hashserve.sock"]
+
+    def _remove_all() -> list[Path]:
+        removed = []
+        for p in [lock, *sockets]:
+            if p.exists() or p.is_socket():
+                p.unlink(missing_ok=True)
+                removed.append(p)
         return removed
+
+    if not lock.exists():
+        # No lock file - remove any orphaned sockets unconditionally.
+        removed = []
+        for sock in sockets:
+            if sock.exists() or sock.is_socket():
+                sock.unlink(missing_ok=True)
+                removed.append(sock)
+        return removed
+
     try:
         pid = int(lock.read_text().strip())
     except (ValueError, OSError):
-        lock.unlink(missing_ok=True)
-        return [lock]
+        return _remove_all()
+
     try:
         os.kill(pid, 0)
         # Process exists - confirm it is actually bitbake before leaving the lock alone.
@@ -308,14 +326,12 @@ def clear_stale_bitbake_locks(cfg: BuildConfig) -> list[Path]:
         if cmdline_path.exists():
             cmdline = cmdline_path.read_bytes().replace(b"\x00", b" ").decode(errors="replace")
             if "bitbake" not in cmdline.lower():
-                lock.unlink(missing_ok=True)
-                removed.append(lock)
+                return _remove_all()
     except ProcessLookupError:
-        lock.unlink(missing_ok=True)
-        removed.append(lock)
+        return _remove_all()
     except PermissionError:
         pass
-    return removed
+    return []
 
 
 def run_build(
