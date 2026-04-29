@@ -13,7 +13,7 @@ inside the container, which emits ``Currently N tasks running (X of Y
 complete)`` status lines several times per second - a much livelier
 counter than the per-task-start ``NOTE: Running task`` lines we get in
 non-TTY mode. The PTY also means bitbake's stdout is line-flushed
-rather than block-buffered, so ``varis log`` and the progress bar stay
+rather than block-buffered, so ``bspctl log`` and the progress bar stay
 responsive during long compile phases.
 """
 
@@ -64,19 +64,19 @@ SEVERITY_PASSTHROUGH = re.compile(r"\b(ERROR|FATAL|WARNING|QA Issue):")
 # knotty in TTY mode emits ANSI CSI escapes to manipulate the cursor and
 # redraw progress lines in place.  We strip both the standard CSI form
 # (ESC [ ... letter) and the less common OSC form (ESC ] ... BEL) before
-# writing to kas.log so downstream tools (triage, grep, varis log) see
+# writing to kas.log so downstream tools (triage, grep, bspctl log) see
 # clean plain text.  The regex is deliberately conservative; anything
-# exotic gets left as-is.
+# exotic gets left as-is.  See ``bspctl log`` for the downstream reader.
 ANSI_CSI_RE = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
 ANSI_OSC_RE = re.compile(r"\x1b\][^\x07]*\x07")
 LINE_SPLIT_RE = re.compile(rb"\r\n|\n|\r")
 
 # Overlay materialization: the kas-container bind-mount only includes
-# ``KAS_WORK_DIR`` (= bsp_root) as ``/work``. Symlinking the overlay
-# under ``<bsp_root>/.varis/overlays/`` puts it inside that mount so
+# ``KAS_WORK_DIR`` (= bsp_root) as ``/work``. Copying the overlay
+# under ``<bsp_root>/.bspctl/overlays/`` puts it inside that mount so
 # the ``<user-yml>:<overlay>`` colon-joined arg resolves cleanly from
 # the container's perspective.
-_OVERLAY_DIR_RELPATH = Path(".varis") / "overlays"
+_OVERLAY_DIR_RELPATH = Path(".bspctl") / "overlays"
 
 
 def _strip_ansi(s: str) -> str:
@@ -103,7 +103,7 @@ def _fmt_du(delta: int) -> str:
 
 
 def materialize_overlay(cfg: BuildConfig, overlay_source: Path) -> Path:
-    """Copy ``overlay_source`` into ``<bsp_root>/.varis/overlays/``.
+    """Copy ``overlay_source`` into ``<bsp_root>/.bspctl/overlays/``.
 
     Returns the path *relative to* ``cfg.bsp_root`` so callers can
     pass it straight into the ``kas-container build <user>:<overlay>``
@@ -347,14 +347,13 @@ def run_build(
     Returns the build exit code. Does not raise - caller decides how to
     react to a nonzero status.
 
-    ``kas_yaml`` must live under ``cfg.bsp_root`` (the kas-container
-    bind mount). ``overlay_source`` is the absolute path to the static
-    overlay; this function symlinks it into ``<bsp_root>/.varis/overlays/``
+    ``overlay_source`` is the absolute path to the static
+    overlay; this function copies it into ``<bsp_root>/.bspctl/overlays/``
     so it is reachable from inside the container.
 
     ``extra_overlays`` are additional kas YAML overlays to layer on top
     (colon-syntax: ``bspctl build main.yml:extra.yml``). Each is materialized
-    into ``.varis/overlays/`` alongside the main tuning overlay.
+    into ``.bspctl/overlays/`` alongside the main tuning overlay.
     """
     removed = clear_stale_bitbake_locks(cfg)
     for lock in removed:
@@ -417,7 +416,7 @@ def run_build(
     cmd += ["kas-container", *_ccache_args(cfg), "build", kas_arg]
 
     log.info(f"exec: {' '.join(cmd)}")
-    # The pump thread writes every line to kas.log for `varis log` to tail,
+    # The pump thread writes every line to kas.log for `bspctl log` to tail,
     # parses bitbake counters into a rich Progress bar, and surfaces
     # ERROR/WARNING/FATAL/QA Issue lines above the bar.  Nothing goes to
     # sys.stdout directly - the Progress instance owns the terminal.
@@ -605,8 +604,8 @@ def run_build(
     finally:
         if not terminated:
             # Wrapper crashed before the normal step_ok/step_fail path.  Emit
-            # a terminal event anyway so events.jsonl never dead-ends at
-            # step_start and `varis triage` has something to find.
+        # a terminal event anyway so events.jsonl never dead-ends at
+        # step_start and `bspctl triage` has something to find.
             if rc == 0:
                 deploy = cfg.bsp_root / "build" / "tmp" / "deploy" / "images" / cfg.machine
                 log.step_ok("kas_build", deploy_dir=str(deploy), exit_code=rc)
