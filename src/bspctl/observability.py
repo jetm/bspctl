@@ -1,6 +1,6 @@
 """Structured logging and run-state tracking.
 
-Each `varis build` invocation creates a run directory under build/runs/<ts>/
+Each `bspctl build` invocation creates a run directory under build/runs/<ts>/
 containing:
 
     events.jsonl    one JSON object per step start/end/error (machine-readable)
@@ -10,7 +10,7 @@ containing:
     time.log        /usr/bin/time -v output (when available)
     du.tsv          periodic `du -sb build/tmp` samples
 
-This layout lets `varis triage` post-mortem a failure without re-running
+This layout lets `bspctl triage` post-mortem a failure without re-running
 the build: it grep's events.jsonl for the failing step and surfaces the
 matching kas.log excerpt plus the bitbake recipe log that triggered it.
 """
@@ -39,7 +39,7 @@ def _utc_now_iso() -> str:
 
 @dataclass
 class RunLogger:
-    """Writes both structured JSONL and a human log for one `varis` run.
+    """Writes both structured JSONL and a human log for one `bspctl` run.
 
     Use as a context manager:
 
@@ -85,7 +85,7 @@ class RunLogger:
     def __enter__(self) -> RunLogger:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._events_fh = self.events_path.open("w")
-        self._logger = logging.getLogger(f"varis.run.{self.run_id}")
+        self._logger = logging.getLogger(f"bspctl.run.{self.run_id}")
         self._logger.setLevel(logging.DEBUG)
         self._logger.handlers.clear()
         rich_h = RichHandler(console=console, show_time=False, show_path=False, markup=True)
