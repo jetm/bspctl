@@ -1,7 +1,7 @@
 """Inspect a kas YAML and classify the BSP family.
 
-Used by the BYO (Form A) path of ``varis build``: when the user hands
-varis a kas YAML directly, we cannot rely on the manifest filename
+Used by the BYO (Form A) path of ``bspctl build``: when the user hands
+bspctl a kas YAML directly, we cannot rely on the manifest filename
 regex in :func:`bspctl.bsp_model.detect_bsp_family`. Instead the
 classifier reads ``machine:`` and ``repos:`` from the YAML and applies
 a small first-match-wins rule set:
@@ -21,7 +21,7 @@ BSP-agnostic optimizations (ccache, MIRRORS, PREMIRRORS, FETCHCMD_wget,
 PYTHONMALLOC) - onto these YAMLs.
 
 The function never raises - I/O on the YAML is wrapped defensively so
-``varis build my.yml`` can fail with a single typer.Exit(2) instead of
+``bspctl build my.yml`` can fail with a single typer.Exit(2) instead of
 a Python traceback.
 """
 

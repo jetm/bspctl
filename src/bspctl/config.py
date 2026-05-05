@@ -1,6 +1,6 @@
 """Build configuration: defaults, env overrides, arg resolution.
 
-The :class:`BuildConfig` carries everything `varis build` needs to
+The :class:`BuildConfig` carries everything `bspctl build` needs to
 dispatch a single run for either BSP family. ``bsp_family`` is fixed
 at construction time (the dispatcher in cli.py inspects the manifest
 filename or the user-supplied YAML and feeds the answer into
@@ -71,9 +71,9 @@ def infer_repo_branch(manifest: str, fallback: str = DEFAULT_NXP_REPO_BRANCH) ->
 
 @dataclass(frozen=True)
 class BuildConfig:
-    """Resolved settings for a single `varis build` run.
+    """Resolved settings for a single `bspctl build` run.
 
-    The BYO ``varis build my.yml`` flow sets ``kas_yaml_override`` to
+    The BYO ``bspctl build my.yml`` flow sets ``kas_yaml_override`` to
     the user-supplied path; the manifest-driven flow leaves it None and
     falls back to ``default_kas_yaml``.
     """
@@ -197,7 +197,7 @@ class BuildConfig:
         """Effective kas YAML for this run.
 
         Returns ``kas_yaml_override`` when the user supplied one (BYO
-        ``varis build my.yml``); otherwise the manifest-flow default.
+        ``bspctl build my.yml``); otherwise the manifest-flow default.
         """
         return self.kas_yaml_override if self.kas_yaml_override is not None else self.default_kas_yaml
 

@@ -3,15 +3,15 @@
 Each check is a callable returning a :class:`CheckResult`. Checks are
 grouped by severity:
 
-* ``BLOCK`` - halt `varis build` before it spawns anything expensive
+* ``BLOCK`` - halt `bspctl build` before it spawns anything expensive
 * ``WARN``  - print a warning and continue
 * ``INFO``  - purely informational, never stops or warns the user
 
 The check list is now BSP-aware: ``SHARED_CHECKS`` runs for every BSP,
 and the dispatched :class:`~bspctl.bsp_model.BspModel.doctor_extras`
 adds the family-specific gates (``check_forks_linux_imx`` and friends
-for NXP; the four ``check_ti_*`` functions for TI). Both ``varis
-doctor`` and the pre-flight gate inside ``varis build`` consume the
+for NXP; the four ``check_ti_*`` functions for TI). Both ``bspctl
+doctor`` and the pre-flight gate inside ``bspctl build`` consume the
 same assembled list via :func:`run_all`.
 """
 
@@ -393,7 +393,7 @@ def check_bitbake_override(cfg: BuildConfig) -> CheckResult:
             "bitbake-override",
             Severity.INFO,
             detail,
-            fix_hint="Run `varis bitbake-override --apply` (or it auto-applies on `varis build`).",
+fix_hint="Run `bspctl bitbake-override --apply` (or it auto-applies on `bspctl build`).",
         )
     if st.state == "disabled":
         return _skip("bitbake-override", Severity.INFO, "BSPCTL_BITBAKE_OVERRIDE=0")
@@ -443,7 +443,7 @@ def check_manifest_consistency(cfg: BuildConfig) -> CheckResult:
             "manifest",
             Severity.INFO,
             "; ".join(issues),
-            fix_hint="`varis build` will force a full re-sync to reconcile.",
+fix_hint="`bspctl build` will force a full re-sync to reconcile.",
         )
     return _ok("manifest", Severity.INFO, "matches .repo/ state")
 
@@ -484,7 +484,7 @@ def check_ti_layertool_present(cfg: BuildConfig) -> CheckResult:
         return _fail(
             "ti-layertool",
             Severity.BLOCK,
-            f"{script} missing - varis cannot populate ti/sources/ without it",
+f"{script} missing - bspctl cannot populate ti/sources/ without it",
             fix_hint=(
                 "git clone -b master_var01 https://github.com/varigit/oe-layersetup "
                 f"{cfg.workspace / 'ti' / 'oe-layertool'}"
@@ -496,7 +496,7 @@ def check_ti_layertool_present(cfg: BuildConfig) -> CheckResult:
 def check_ti_layertool_config_consistency(cfg: BuildConfig) -> CheckResult:
     """Compare ``ti/conf/active-config.txt`` (last applied) against the
     requested config filename. SKIP on first run before any populate
-    has succeeded; FAIL on drift so ``varis build`` knows to force a
+has succeeded; FAIL on drift so ``bspctl build`` knows to force a
     re-populate.
     """
     tracked = cfg.workspace / "ti" / "conf" / "active-config.txt"
@@ -511,7 +511,7 @@ def check_ti_layertool_config_consistency(cfg: BuildConfig) -> CheckResult:
             "ti-config",
             Severity.INFO,
             f"tracked={recorded!r} requested={cfg.manifest!r}",
-            fix_hint="`varis build` will re-run oe-layertool-setup.sh to reconcile.",
+fix_hint="`bspctl build` will re-run oe-layertool-setup.sh to reconcile.",
         )
     return _ok("ti-config", Severity.INFO, f"matches {recorded}")
 

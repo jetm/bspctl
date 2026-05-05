@@ -15,7 +15,7 @@ tiered downloads cache is reused, and run it from ``cfg.workspace /
 ``ti/oe-layertool/``).
 
 After a successful run we record the active config name in
-``ti/conf/active-config.txt`` so future ``varis build`` invocations
+``ti/conf/active-config.txt`` so future ``bspctl build`` invocations
 can skip the script when the requested config already matches.
 """
 

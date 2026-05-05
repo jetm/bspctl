@@ -1,4 +1,4 @@
-"""Per-BSP model for the varis CLI.
+"""Per-BSP model for the bspctl CLI.
 
 Variscite ships BSPs for both NXP i.MX and TI Sitara SoM families.
 Each family has its own toolchain (Google ``repo`` + ``var-setup-release.sh``
