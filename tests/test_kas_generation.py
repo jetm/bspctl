@@ -3,7 +3,7 @@
 The generator is now topology-only: machine, distro, target, and
 repos. The Variscite tuning block (``local_conf_header``) and the
 meta-varis-overrides repo entry live in the static overlay YAMLs at
-``overlays/varis-tuning-<bsp>.yml`` and are layered on top by ``varis
+``overlays/bspctl-tuning-<bsp>.yml`` and are layered on top by ``bspctl
 build`` at run time. These tests pin that contract so a regression
 that re-injects either piece into the generator output is caught
 immediately.
@@ -53,7 +53,7 @@ def test_template_is_workspace_subdir_only() -> None:
 def test_topology_output_has_no_local_conf_header(tmp_path: Path) -> None:
     """The generator must not emit a local_conf_header block.
 
-    The tuning lives in overlays/varis-tuning-<bsp>.yml; layering it
+    The tuning lives in overlays/bspctl-tuning-<bsp>.yml; layering it
     in at build time is what keeps BYO and manifest flows in sync.
     """
     (tmp_path / "nxp").mkdir()
