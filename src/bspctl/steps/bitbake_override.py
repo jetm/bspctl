@@ -28,7 +28,7 @@ Mechanics:
 Branch resolution (first match wins):
 
 1. ``branch`` argument (CLI ``--branch``).
-2. ``VARIS_BITBAKE_OVERRIDE_BRANCH`` env var.
+2. ``BSPCTL_BITBAKE_OVERRIDE_BRANCH`` env var.
 3. Auto: read ``__version__`` from the BSP-bundled
    ``bitbake/lib/bb/__init__.py`` (e.g. ``2.12.1``) and compute
    ``br-<major>.<minor>`` (e.g. ``br-2.12``). The user maintains one
@@ -63,17 +63,17 @@ _VERSION_RE = re.compile(r'^__version__\s*=\s*"(?P<ver>\d+\.\d+(?:\.\d+)?)"', re
 class OverrideStatus:
     """Snapshot of where the override currently stands.
 
-    ``active`` means the BSP-bundled bitbake path is the symlink we
-    expect AND the clone is checked out. ``stale`` means a real BSP
-    directory is in place (post-resync, or never applied). ``disabled``
-    means the user set ``VARIS_BITBAKE_OVERRIDE=0`` and we should leave
-    it alone.
+        ``active`` means the BSP-bundled bitbake path is the symlink we
+        expect AND the clone is checked out. ``stale`` means a real BSP
+        directory is in place (post-resync, or never applied). ``disabled``
+    means the user set ``BSPCTL_BITBAKE_OVERRIDE=0`` and we should leave
+        it alone.
 
-    ``poky_bitbake`` is the BSP-bundled bitbake path. The field name is
-    historical (the override originally only ran for NXP, where the
-    path lived under ``sources/poky/bitbake``). It now resolves to the
-    BSP-aware path - ``sources/bitbake`` for TI, unchanged for NXP -
-    but the field name is kept to avoid churning event log consumers.
+        ``poky_bitbake`` is the BSP-bundled bitbake path. The field name is
+        historical (the override originally only ran for NXP, where the
+        path lived under ``sources/poky/bitbake``). It now resolves to the
+        BSP-aware path - ``sources/bitbake`` for TI, unchanged for NXP -
+        but the field name is kept to avoid churning event log consumers.
     """
 
     state: str  # "active" | "stale" | "disabled" | "missing"
@@ -96,12 +96,12 @@ def _upstream_dir(cfg: BuildConfig) -> Path:
 
 
 def _override_repo() -> Path:
-    raw = os.environ.get("VARIS_BITBAKE_OVERRIDE_REPO")
+    raw = os.environ.get("BSPCTL_BITBAKE_OVERRIDE_REPO")
     return Path(raw).expanduser() if raw else DEFAULT_OVERRIDE_REPO
 
 
 def _disabled() -> bool:
-    return os.environ.get("VARIS_BITBAKE_OVERRIDE", "1") == "0"
+    return os.environ.get("BSPCTL_BITBAKE_OVERRIDE", "1") == "0"
 
 
 def _read_bb_version(bitbake_dir: Path) -> str | None:
@@ -141,7 +141,7 @@ def _auto_branch(cfg: BuildConfig) -> str | None:
 def resolve_branch(cfg: BuildConfig, override: str | None = None) -> str:
     if override:
         return override
-    env_branch = os.environ.get("VARIS_BITBAKE_OVERRIDE_BRANCH")
+    env_branch = os.environ.get("BSPCTL_BITBAKE_OVERRIDE_BRANCH")
     if env_branch:
         return env_branch
     auto = _auto_branch(cfg)
@@ -149,7 +149,7 @@ def resolve_branch(cfg: BuildConfig, override: str | None = None) -> str:
         raise RuntimeError(
             "could not auto-detect override branch: "
             f"{_bsp_bitbake(cfg) / 'lib/bb/__init__.py'} unreadable. "
-            "Pass --branch or set VARIS_BITBAKE_OVERRIDE_BRANCH."
+            "Pass --branch or set BSPCTL_BITBAKE_OVERRIDE_BRANCH."
         )
     return auto
 
@@ -400,7 +400,7 @@ def status(cfg: BuildConfig) -> OverrideStatus:
             bsp_version=_read_bb_version(poky_bitbake) if poky_bitbake.is_dir() else None,
             poky_bitbake=poky_bitbake,
             upstream_dir=upstream_dir,
-            detail="VARIS_BITBAKE_OVERRIDE=0",
+            detail="BSPCTL_BITBAKE_OVERRIDE=0",
         )
 
     if not poky_bitbake.exists() and not upstream_dir.exists():
@@ -464,7 +464,7 @@ def apply(
     """
     if _disabled():
         if log is not None:
-            log.step_skip("bitbake_override", reason="VARIS_BITBAKE_OVERRIDE=0")
+            log.step_skip("bitbake_override", reason="BSPCTL_BITBAKE_OVERRIDE=0")
         return status(cfg)
 
     poky_bitbake = _bsp_bitbake(cfg)
