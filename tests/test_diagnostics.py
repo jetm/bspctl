@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.diagnostics.
+"""Unit tests for bspctl.diagnostics.
 
 Focuses on ``check_container_os``: verifies the BLOCK escalation for
 container Python 3.13.x and 3.14.x, the PASS path on 3.12 and earlier
@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import pytest
 
-from varis_build.config import BuildConfig
-from varis_build.diagnostics import (
+from bspctl.config import BuildConfig
+from bspctl.diagnostics import (
     Severity,
     Status,
     check_container_os,
@@ -51,7 +51,7 @@ def _mock_run(stdout: str, returncode: int = 0):
 )
 def test_supported_python_passes_at_block_severity(stdout: str, expected_minor_label: str) -> None:
     """3.12 and earlier pass the check; severity stays BLOCK on success."""
-    with patch("varis_build.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
+    with patch("bspctl.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
         result = check_container_os(_cfg())
     assert result.status == Status.PASS
     assert result.severity == Severity.BLOCK
@@ -67,7 +67,7 @@ def test_supported_python_passes_at_block_severity(stdout: str, expected_minor_l
     ],
 )
 def test_python_313_blocks(stdout: str) -> None:
-    with patch("varis_build.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
+    with patch("bspctl.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
         result = check_container_os(_cfg())
     assert result.status == Status.FAIL
     assert result.severity == Severity.BLOCK
@@ -86,7 +86,7 @@ def test_python_313_blocks(stdout: str) -> None:
     ],
 )
 def test_python_314_blocks(stdout: str) -> None:
-    with patch("varis_build.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
+    with patch("bspctl.diagnostics.subprocess.run", return_value=_mock_run(stdout)):
         result = check_container_os(_cfg())
     assert result.status == Status.FAIL
     assert result.severity == Severity.BLOCK
@@ -99,7 +99,7 @@ def test_python_314_blocks(stdout: str) -> None:
 def test_docker_timeout_skips_at_warn() -> None:
     """A transient docker hiccup must not block the build."""
     with patch(
-        "varis_build.diagnostics.subprocess.run",
+        "bspctl.diagnostics.subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=20),
     ):
         result = check_container_os(_cfg())
@@ -109,7 +109,7 @@ def test_docker_timeout_skips_at_warn() -> None:
 
 def test_docker_missing_skips_at_warn() -> None:
     with patch(
-        "varis_build.diagnostics.subprocess.run",
+        "bspctl.diagnostics.subprocess.run",
         side_effect=FileNotFoundError("docker"),
     ):
         result = check_container_os(_cfg())
@@ -119,7 +119,7 @@ def test_docker_missing_skips_at_warn() -> None:
 
 def test_nonzero_returncode_skips_at_warn() -> None:
     with patch(
-        "varis_build.diagnostics.subprocess.run",
+        "bspctl.diagnostics.subprocess.run",
         return_value=_mock_run("", returncode=1),
     ):
         result = check_container_os(_cfg())
@@ -129,7 +129,7 @@ def test_nonzero_returncode_skips_at_warn() -> None:
 
 def test_empty_output_skips_at_warn() -> None:
     with patch(
-        "varis_build.diagnostics.subprocess.run",
+        "bspctl.diagnostics.subprocess.run",
         return_value=_mock_run("\n"),
     ):
         result = check_container_os(_cfg())
@@ -141,7 +141,7 @@ def test_unparseable_python_line_passes() -> None:
     """If the python3 --version line is malformed, fall through to PASS
     rather than producing a false BLOCK."""
     with patch(
-        "varis_build.diagnostics.subprocess.run",
+        "bspctl.diagnostics.subprocess.run",
         return_value=_mock_run("ubuntu noble\nweird-output-no-version\n"),
     ):
         result = check_container_os(_cfg())

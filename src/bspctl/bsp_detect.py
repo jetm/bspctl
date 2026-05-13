@@ -2,7 +2,7 @@
 
 Used by the BYO (Form A) path of ``varis build``: when the user hands
 varis a kas YAML directly, we cannot rely on the manifest filename
-regex in :func:`varis_build.bsp_model.detect_bsp_family`. Instead the
+regex in :func:`bspctl.bsp_model.detect_bsp_family`. Instead the
 classifier reads ``machine:`` and ``repos:`` from the YAML and applies
 a small first-match-wins rule set:
 

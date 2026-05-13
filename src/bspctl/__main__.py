@@ -1,6 +1,6 @@
-"""Entry point for `python -m varis_build`."""
+"""Entry point for `python -m bspctl`."""
 
-from varis_build.cli import app
+from bspctl.cli import app
 
 if __name__ == "__main__":
     app()

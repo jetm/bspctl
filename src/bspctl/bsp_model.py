@@ -11,13 +11,13 @@ This module exports:
 
 * :func:`detect_bsp_family` - classify a manifest filename. Pure regex,
   no I/O. The return value drives both the dispatcher in
-  :mod:`varis_build.cli` and the ``check_host_tools`` decision.
+  :mod:`bspctl.cli` and the ``check_host_tools`` decision.
 * :func:`infer_bsp_branch` - synthesize the
   ``meta-variscite-bsp-ti`` branch suffix from a TI config filename.
 * :class:`BspModel` - dataclass + registry that hold every per-BSP
   knob: defaults, kas template, sync/setup steps, doctor extras.
 * :func:`get_model` - factory returning the dispatched model. Imports
-  are lazy so :mod:`varis_build.config` (which imports
+  are lazy so :mod:`bspctl.config` (which imports
   :func:`infer_bsp_branch` for TI branch fallback) can keep its
   circular dep-free top-level import.
 """
@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from varis_build.kas import KasTemplate
+    from bspctl.kas import KasTemplate
 
 
 # ---------------------------------------------------------------------------
@@ -166,8 +166,8 @@ def get_model(family: Literal["nxp", "ti"]) -> BspModel:
     """
     # Lazy: avoid pulling diagnostics/steps/kas into every consumer of
     # detect_bsp_family or infer_bsp_branch.
-    from varis_build import config as cfg_mod
-    from varis_build.diagnostics import (
+    from bspctl import config as cfg_mod
+    from bspctl.diagnostics import (
         check_forks_linux_imx,
         check_forks_ti_linux_kernel,
         check_forks_ti_u_boot,
@@ -176,11 +176,11 @@ def get_model(family: Literal["nxp", "ti"]) -> BspModel:
         check_ti_layertool_config_consistency,
         check_ti_layertool_present,
     )
-    from varis_build.kas import NXP_KAS_TEMPLATE, TI_KAS_TEMPLATE
-    from varis_build.steps import repo as step_repo
-    from varis_build.steps import setup_env as step_setup
-    from varis_build.steps import ti_layertool as step_ti_layertool
-    from varis_build.steps import ti_setup_env as step_ti_setup
+    from bspctl.kas import NXP_KAS_TEMPLATE, TI_KAS_TEMPLATE
+    from bspctl.steps import repo as step_repo
+    from bspctl.steps import setup_env as step_setup
+    from bspctl.steps import ti_layertool as step_ti_layertool
+    from bspctl.steps import ti_setup_env as step_ti_setup
 
     if family == "nxp":
         return BspModel(

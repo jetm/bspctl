@@ -1,10 +1,10 @@
-"""Unit tests for varis_build.bsp_model.infer_bsp_branch."""
+"""Unit tests for bspctl.bsp_model.infer_bsp_branch."""
 
 from __future__ import annotations
 
 import pytest
 
-from varis_build.bsp_model import infer_bsp_branch
+from bspctl.bsp_model import infer_bsp_branch
 
 
 @pytest.mark.parametrize(

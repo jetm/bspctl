@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.steps.bitbake_override.
+"""Unit tests for bspctl.steps.bitbake_override.
 
 Covers the BSP-aware path resolution (NXP carries bitbake at
 ``sources/poky/bitbake``; TI carries it at ``sources/bitbake``), the
@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from varis_build.config import BuildConfig
-from varis_build.steps.bitbake_override import (
+from bspctl.config import BuildConfig
+from bspctl.steps.bitbake_override import (
     _bsp_bitbake,
     _upstream_dir,
     apply,

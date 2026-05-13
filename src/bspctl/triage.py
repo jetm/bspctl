@@ -1,6 +1,6 @@
 """Post-mortem triage for a failed build run.
 
-Reads a run directory produced by :mod:`varis_build.observability`, locates
+Reads a run directory produced by :mod:`bspctl.observability`, locates
 the first ``step_fail`` event, and surfaces the relevant portion of
 ``kas.log`` plus (for bitbake failures) the specific recipe log that
 triggered the stop.
@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from varis_build.fork_race_signatures import (
+from bspctl.fork_race_signatures import (
     FORK_RACE_SIGNATURES,
     FORK_RACE_SUGGESTION,
 )
@@ -156,7 +156,7 @@ _SUGGESTIONS: list[tuple[re.Pattern[str], str]] = [
     (
         # Manifestations of the fork-in-multi-threaded-program race in
         # bitbake's parser. Patterns live in
-        # varis_build.fork_race_signatures so the empirical stress-test
+        # bspctl.fork_race_signatures so the empirical stress-test
         # harness in steps/stress_parse.py shares the same set; new
         # variants only need adding once.
         re.compile("|".join(p.pattern for p in FORK_RACE_SIGNATURES)),

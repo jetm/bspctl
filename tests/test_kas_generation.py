@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.kas YAML generation.
+"""Unit tests for bspctl.kas YAML generation.
 
 The generator is now topology-only: machine, distro, target, and
 repos. The Variscite tuning block (``local_conf_header``) and the
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from varis_build.kas import (
+from bspctl.kas import (
     NXP_KAS_TEMPLATE,
     TI_KAS_TEMPLATE,
     KasGenOptions,

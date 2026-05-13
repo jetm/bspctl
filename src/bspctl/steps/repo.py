@@ -8,8 +8,8 @@ import subprocess
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from varis_build.config import BuildConfig
-    from varis_build.observability import RunLogger
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 
 def init_and_sync(

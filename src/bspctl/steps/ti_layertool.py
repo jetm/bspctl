@@ -1,6 +1,6 @@
 """Populate `ti/sources/` via Variscite's `oe-layertool-setup.sh`.
 
-Mirrors the role of :mod:`varis_build.steps.repo` for the NXP side, but
+Mirrors the role of :mod:`bspctl.steps.repo` for the NXP side, but
 TI BSP delivery uses Variscite's `varigit/oe-layersetup` script (a
 shell wrapper around sequential `git clone` + checkout against pinned
 SHAs in a `processor-sdk-*-config_var<N>.txt` config file) instead of
@@ -27,8 +27,8 @@ import subprocess
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from varis_build.config import BuildConfig
-    from varis_build.observability import RunLogger
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 
 def _record_active_config(cfg: BuildConfig) -> None:

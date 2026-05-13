@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.bsp_detect.detect_bsp_from_yaml.
+"""Unit tests for bspctl.bsp_detect.detect_bsp_from_yaml.
 
 Pins the rules that classify a kas YAML as NXP, TI, generic, or
 unknown for the BYO ``varis build my.yml`` flow. Order: machine
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from varis_build.bsp_detect import detect_bsp_from_yaml
+from bspctl.bsp_detect import detect_bsp_from_yaml
 
 if TYPE_CHECKING:
     from pathlib import Path

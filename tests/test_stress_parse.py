@@ -1,4 +1,4 @@
-"""Unit tests for varis_build.steps.stress_parse.
+"""Unit tests for bspctl.steps.stress_parse.
 
 Mocks ``run_shell_capture`` so the loop logic, signature scanning,
 and ``summary.json`` aggregation can be exercised without a live
@@ -17,9 +17,9 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from varis_build.config import BuildConfig
-from varis_build.observability import RunLogger
-from varis_build.steps import stress_parse
+from bspctl.config import BuildConfig
+from bspctl.observability import RunLogger
+from bspctl.steps import stress_parse
 
 if TYPE_CHECKING:
     from pathlib import Path
