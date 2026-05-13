@@ -86,6 +86,21 @@ def test_detect_config_fallback(tmp_path: Path) -> None:
     assert detect_bsp_family(Path("garbage.xml"), config_file=cfg) == "ti"
 
 
+def test_vendor_registry_takes_precedence_over_builtin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A user vendor entry matches before the built-in NXP regex.
+
+    The manifest 'myco-1.0.xml' does not match the built-in NXP pattern
+    (imx-A.B.C-X.Y.Z.xml) but matches the user's regex. The vendor entry
+    must win and return its declared family.
+    """
+    from bspctl.vendor_config import VendorEntry
+
+    vendor = VendorEntry(name="myco", family="nxp", manifest_regex=r"^myco-.*\.xml$")
+    monkeypatch.setattr("bspctl.bsp_model.load_vendors", lambda: [vendor])
+
+    assert detect_bsp_family(Path("myco-1.0.xml")) == "nxp"
+
+
 # ---------------------------------------------------------------------------
 # get_model
 # ---------------------------------------------------------------------------
