@@ -86,16 +86,22 @@ def _main(
 
 
 def _workspace_from_cwd() -> Path:
-    """Walk up from CWD until we find a dir containing varis/."""
+    """Walk up from CWD to find the BSP workspace root.
+
+    Checks in order:
+    1. A .bspctl.toml marker file in the candidate directory.
+    2. An nxp/ or ti/ subdirectory in the candidate directory.
+    """
     cur = Path.cwd().resolve()
     for candidate in (cur, *cur.parents):
-        if (candidate / "varis").is_dir():
+        if (candidate / ".bspctl.toml").is_file():
+            return candidate
+        if (candidate / "nxp").is_dir() or (candidate / "ti").is_dir():
             return candidate
     console.print(
-        "[red]Not inside a Variscite workspace[/] (looking for varis/). "
-        "cd there, pass --workspace, or - for generic kas YAMLs - run "
-        "`varis build <kas.yml>` from anywhere; BYO builds whose YAML "
-        "does not target a Variscite SoM skip the workspace lookup."
+        "[red]Not inside a BSP workspace[/] (no .bspctl.toml or nxp/ / ti/ found). "
+        "cd to the workspace root, pass --workspace, or - for generic kas YAMLs - run "
+        "`bspctl build <kas.yml>` from anywhere."
     )
     raise typer.Exit(code=2)
 
