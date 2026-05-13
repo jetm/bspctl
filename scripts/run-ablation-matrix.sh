@@ -27,7 +27,7 @@
 #     scripts/run-ablation-matrix.sh --configs A,D,E       # subset of configs
 #
 # Aggregation after the run:
-#     varis/scripts/blog-ablation-table.py
+#     bspctl/scripts/blog-ablation-table.py
 set -euo pipefail
 
 BSPCTL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -108,7 +108,7 @@ run_cell() {
         "PYTHONMALLOC=${malloc}"
     )
 
-    local varis_args=(
+    local bspctl_args=(
         stress-parse
         -f "${MANIFEST}"
         -m "${MACHINE}"
@@ -116,23 +116,23 @@ run_cell() {
         --label "${label}"
     )
     if [[ "${host_mode}" == "1" ]]; then
-        varis_args+=(--host)
+        bspctl_args+=(--host)
     fi
 
     if [[ "${col}" == "py3.15b1" ]]; then
-        # Host mode + Python 3.15.0b1: run varis itself under 3.15.0b1
+        # Host mode + Python 3.15.0b1: run bspctl itself under 3.15.0b1
         # so sys.executable forwards into BB_PYTHON3 inside `kas shell`.
-        # uv run installs varis editable into a 3.15.0b1 ephemeral env.
+        # uv run installs bspctl editable into a 3.15.0b1 ephemeral env.
         "${cmd_env[@]}" \
             uv run --python "${PY315B1}" --with-editable "${BSPCTL_DIR}" \
-                varis "${varis_args[@]}" || {
+                bspctl "${bspctl_args[@]}" || {
             echo "CELL ${label} FAILED (rc=$?)" >&2
         }
     else
-        # kas-container mode: varis runs under whatever its venv carries
+        # kas-container mode: bspctl runs under whatever its venv carries
         # (3.14.4); kas-container's bundled 3.12.10 runs bitbake.
         "${cmd_env[@]}" \
-            "${BSPCTL_DIR}/.venv-test/bin/bspctl" "${varis_args[@]}" || {
+            "${BSPCTL_DIR}/.venv-test/bin/bspctl" "${bspctl_args[@]}" || {
             echo "CELL ${label} FAILED (rc=$?)" >&2
         }
     fi
