@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+import sys
+import termios
+from typing import TYPE_CHECKING
 
-from bspctl.config import BuildConfig
-from bspctl.observability import RunLogger
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bspctl.config import BuildConfig
+    from bspctl.observability import RunLogger
 
 
 def _find_meta_avocado_dir(kas_yaml: Path) -> Path:
@@ -43,7 +48,14 @@ def run_qemu(cfg: BuildConfig, log: RunLogger, *, swtpm: bool, kas_yaml: Path) -
         )
 
     log.step_start("run_qemu", script=str(script), swtpm=swtpm)
-    proc = subprocess.Popen(["bash", str(script)], cwd=cfg.bsp_root)
-    rc = proc.wait()
+    saved_attrs = None
+    if sys.stdin.isatty():
+        saved_attrs = termios.tcgetattr(sys.stdin.fileno())
+    try:
+        proc = subprocess.Popen(["bash", str(script)], cwd=cfg.bsp_root)
+        rc = proc.wait()
+    finally:
+        if saved_attrs is not None:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, saved_attrs)
     log.step_ok("run_qemu", exit_code=rc)
     return rc

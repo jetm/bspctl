@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import pytest
 
@@ -119,6 +122,38 @@ def test_run_qemu_raises_when_build_missing(tmp_path: Path) -> None:
     log = MagicMock()
     with pytest.raises(RuntimeError, match="Build output not found"):
         run_qemu(cfg, log, swtpm=True, kas_yaml=kas_yaml)
+
+
+def test_run_qemu_restores_termios_on_tty(tmp_path: Path) -> None:
+    from bspctl.steps.run_qemu import run_qemu
+
+    sources = tmp_path / "sources"
+    kas_yaml = _make_kas_yaml(sources)
+    cfg = _meta_avocado_cfg(sources)
+
+    script_dir = sources / "meta-avocado" / "meta-avocado-qemu" / "scripts"
+    script_dir.mkdir(parents=True, exist_ok=True)
+    (script_dir / "run-qemux86-64-swtpm").write_text("#!/bin/bash\n")
+    (cfg.bsp_root / "build").mkdir(parents=True)
+
+    log = MagicMock()
+    mock_proc = MagicMock()
+    mock_proc.wait.return_value = 0
+    sentinel_attrs = object()
+
+    with (
+        patch("subprocess.Popen", return_value=mock_proc),
+        patch("sys.stdin") as mock_stdin,
+        patch("bspctl.steps.run_qemu.termios") as mock_termios,
+    ):
+        mock_stdin.isatty.return_value = True
+        mock_stdin.fileno.return_value = 0
+        mock_termios.tcgetattr.return_value = sentinel_attrs
+
+        run_qemu(cfg, log, swtpm=True, kas_yaml=kas_yaml)
+
+    mock_termios.tcgetattr.assert_called_once_with(0)
+    mock_termios.tcsetattr.assert_called_once_with(0, mock_termios.TCSADRAIN, sentinel_attrs)
 
 
 def test_run_qemu_invokes_script_with_bsp_root_cwd(tmp_path: Path) -> None:
