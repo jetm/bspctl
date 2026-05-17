@@ -271,6 +271,12 @@ def _ccache_args(cfg: BuildConfig) -> list[str]:
         return []
     ccache_host = cfg.workspace / "ccache"
     ccache_host.mkdir(exist_ok=True)
+    for candidate in cfg.workspace.parents:
+        if (candidate / ".bspctl.toml").is_file():
+            link = candidate / "ccache"
+            if not link.exists() and not link.is_symlink():
+                link.symlink_to(ccache_host)
+            break
     return ["--runtime-args", f"-v {ccache_host}:/work/ccache:rw"]
 
 
