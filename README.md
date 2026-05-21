@@ -1,18 +1,18 @@
 # bspctl
 
-One-command Variscite BSP build orchestrator for NXP i.MX and TI Sitara SoMs,
+NXP i.MX and TI Sitara BSP build orchestrator powered by kas,
 with a generic fallback for any kas YAML. Layers a static tuning overlay
 (ccache wiring, MIRRORS, PREMIRRORS, FETCHCMD_wget, plus
 fork-PREMIRRORs and the renderdoc CMake-launcher fix on NXP) on top of
 either a user-supplied kas YAML (BYO) or a YAML it generates from the
-Variscite repo-tool manifest (NXP) / oe-layertool config (TI). Runs a
+repo-tool manifest (NXP) / oe-layertool config (TI). Runs a
 pre-flight diagnosis before every build, captures structured per-run
 telemetry under `<bsp_root>/build/runs/<ts>/`, and ships a `bspctl triage`
 post-mortem that keys suggestions off the failure pattern.
 
 ## BSP scope
 
-`bspctl` supports two Variscite BSP families plus a generic mode:
+`bspctl` supports two BSP families plus a generic mode:
 
 - **NXP i.MX** (i.MX6/7, i.MX8, i.MX8M, i.MX9x, i.MX95) - manifest is
   `imx-A.B.C-X.Y.Z.xml` from `varigit/variscite-bsp-platform`. Layers
@@ -22,13 +22,33 @@ post-mortem that keys suggestions off the failure pattern.
   `processor-sdk-<poky>-<flavour>-<sdk>-config_var<N>.txt` from
   `varigit/oe-layersetup`. Layers `bspctl-tuning-ti.yml` (ccache + MIRRORS
   + ti-linux-kernel + ti-u-boot fork PREMIRRORs + meta-varis-overrides-ti).
-- **Generic** (any non-Variscite kas YAML, e.g. `qemuarm64` + `poky` +
+- **Generic** (any non-NXP/TI kas YAML, e.g. `qemuarm64` + `poky` +
   `meta-arm`) - no manifest, BYO only. Layers `bspctl-tuning-generic.yml`
   (the BSP-agnostic subset: ccache, MIRRORS, PREMIRRORS, FETCHCMD_wget,
   PYTHONMALLOC). NXP/TI-specific knobs are deliberately excluded.
 
 The dispatched code path branches on the manifest filename (or the BYO YAML's
 machine prefix / repos block) at the top of `bspctl build`.
+
+## Installation
+
+```bash
+uv tool install bspctl
+```
+
+Or with pip:
+
+```bash
+pip install bspctl
+```
+
+### From source (for contributors)
+
+```bash
+git clone https://github.com/jetm/bspctl
+cd bspctl
+uv tool install --editable .
+```
 
 ## Quickstart
 
@@ -43,10 +63,10 @@ uv tool install .
 
 ### Python version pinning
 
-`bspctl` declares `requires-python = ">=3.10,<3.14"`. uv resolves to the
+`bspctl` declares `requires-python = ">=3.11,<3.14"`. uv resolves to the
 newest interpreter in that range, which on most hosts means 3.13. Some
-workflows need to match bitbake's effective production floor (3.10/3.11/
-3.12 on poky walnascar; kas-container ships CPython 3.12.10) - in
+workflows need to match bitbake's effective production floor (3.11/3.12
+on poky walnascar; kas-container ships CPython 3.12.10) - in
 particular, the `bspctl stress-parse --host` mode runs bitbake on the
 host's interpreter, and bitbake's in-tree `test_parser_fork_race`
 auto-skips on 3.14.
@@ -63,7 +83,7 @@ Verify the shebang of the installed entry point points at 3.12:
 
 ```bash
 head -1 "$(which bspctl)"
-# /home/tiamarin/.local/share/uv/tools/bspctl/bin/python3
+# /home/user/.local/share/uv/tools/bspctl/bin/python3
 "$(head -1 "$(which bspctl)" | sed 's|^#!||')" --version
 # Python 3.12.x
 ```
@@ -71,7 +91,7 @@ head -1 "$(which bspctl)"
 Now jump into the workspace and run a default build:
 
 ```bash
-cd ~/repos/personal/variscite
+cd ~/bsp-workspace
 bspctl build
 ```
 
@@ -94,11 +114,11 @@ cp bspctl/examples/kas-imx95-var-dart.yml nxp/my-build.yml
 bspctl bitbake-override --apply
 bspctl build nxp/my-build.yml
 
-# Form A also handles non-Variscite kas YAMLs - the YAML's bsp_root is
+# Form A also handles generic kas YAMLs - the YAML's bsp_root is
 # its own parent directory. Generic mode skips bitbake-override.
 bspctl build pilots/0005-hardening/kas.yml
 
-# Form B: manifest-driven, one shot. Variscite-only.
+# Form B: manifest-driven, one shot. NXP/TI only.
 bspctl bitbake-override --apply
 bspctl build -f imx-6.12.49-2.2.0.xml -m imx95-var-dart
 # TI equivalent
@@ -120,7 +140,7 @@ with a clear message if the path is unreachable.
 ## Overlay model
 
 Every `bspctl build` invocation - BYO or manifest-driven - applies the
-Variscite tuning by layering a static overlay onto the kas YAML at build
+BSP tuning by layering a static overlay onto the kas YAML at build
 time. Your YAML file is not modified on disk; kas merges the overlay in
 when it parses the build.
 
@@ -168,7 +188,7 @@ any work:
   (`imx*` -> NXP; `am*`, `k3-*`, `j7-*` -> TI), then the `repos:` block
   (`meta-imx`, `meta-freescale*`, `meta-nxp*` -> NXP; `meta-ti-bsp`,
   `meta-ti`, `meta-arago` -> TI). A parseable YAML with a machine or
-  repos block but no Variscite markers falls through to **generic**,
+  repos block but no NXP/TI markers falls through to **generic**,
   which selects `bspctl-tuning-generic.yml` and skips the
   bitbake-override step.
 - **Form B (manifest)**: regex on the filename (`imx-*.xml` -> NXP;
@@ -182,7 +202,7 @@ shape-incomplete) exits non-zero with a hint instead of guessing.
 
 ```bash
 bspctl build nxp/my-build.yml             # BYO form (positional YAML)
-bspctl build pilots/0005/kas.yml          # BYO generic mode (non-Variscite)
+bspctl build pilots/0005/kas.yml          # BYO generic mode
 bspctl build --image fsl-image-gui        # heavier image (Wayland, Qt6, Chromium)
 bspctl build --machine imx93-var-dart     # different SoM (still NXP)
 bspctl build --dry-run                    # apply overlay, skip kas-container
@@ -224,13 +244,12 @@ override env vars; env vars override built-in defaults.
 `--workspace` has no env var - it is resolved from the current working
 directory by walking up to find a `.bspctl.toml` marker file or `nxp/`/`ti/`
 subdirectories. The walk is skipped entirely for generic BYO builds
-(`bspctl build my.yml` where the YAML does not target a Variscite SoM);
+(`bspctl build my.yml` where the YAML does not target an NXP/TI SoM);
 `bsp_root` falls back to the YAML's own parent directory so generic builds
 run from any location.
 
 Cache locations (`SSTATE_DIR`, `DL_DIR`) are read from the environment and
-should be pinned in your shell profile, not as `VARIS_*` vars. See
-`kb/reference/bsp-build-environment.md` for the recommended values.
+should be pinned in your shell profile.
 
 ## Pre-flight checks reference
 
@@ -240,7 +259,7 @@ and continues; INFO is purely informational. Per-BSP extras
 (`check_forks_linux_imx` on NXP; `check_ti_layertool_*` on TI) load via
 `BspModel.doctor_extras`; the shared set runs unconditionally. Generic
 BYO mode runs only the shared set - the family-specific gates would
-always fail outside a Variscite tree and are skipped.
+always fail outside an NXP/TI workspace and are skipped.
 
 ## Observability
 
@@ -275,7 +294,7 @@ disk full, GitHub fetch flake, missing EULA, stale bitbake cache,
 kas/container version skew).
 
 `bspctl log` follows the same convention: pass a positional kas YAML to
-tail the latest run for a BYO build, or run from inside a Variscite
+tail the latest run for a BYO build, or run from inside an NXP/TI
 workspace to tail the latest run for the dispatched BSP.
 
 ## Troubleshooting
@@ -312,7 +331,7 @@ For maintainers: the package lives under `src/bspctl/`.
   and `run_all` / `any_blocking_failure` helpers.
 - `kas.py` - topology-only YAML generator: takes a manifest XML + bblayers
   template and emits a kas config covering machine/distro/target/repos. The
-  Variscite tuning lives in `overlays/bspctl-tuning-<bsp>.yml` and is layered
+The BSP tuning lives in `overlays/bspctl-tuning-<bsp>.yml` and is layered
   in by `bspctl build` at run time.
 - `observability.py` - `RunLogger` context manager that owns the
   `<bsp>/build/runs/<ts>/` directory and emits structured `step_*` events.
