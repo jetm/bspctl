@@ -1,6 +1,6 @@
 # Generic (BSP-agnostic) tuning overlay.
 #
-# Layered on top of any kas YAML that does not classify as Variscite NXP
+# Layered on top of any kas YAML that does not classify as NXP
 # or TI. Carries the optimizations that apply to any bitbake build:
 # ccache wiring, fetch robustness (BB_FETCH_TIMEOUT + MIRRORS +
 # PREMIRRORS for github.com), the FETCHCMD_wget crates.io workaround,
@@ -9,8 +9,8 @@
 # Excluded vs. the NXP/TI overlays: ACCEPT_FSL_EULA (NXP-only), the
 # renderdoc CMake-launcher fix (only fires under
 # packagegroup-fsl-tools-gpu-external), per-BSP fork PREMIRRORs (the
-# linux-imx / ti-linux-kernel / ti-u-boot forks are Variscite-specific),
-# and the meta-varis-overrides carry layer (Variscite vendor patches).
+# the linux-imx / ti-linux-kernel / ti-u-boot forks are vendor-specific),
+# and the meta-varis-overrides carry vendor patches.
 #
 # kas merges local_conf_header.<key> and repos.<name> by name, so the
 # user's machine/distro/target/repos stay intact while these knobs are
@@ -19,7 +19,7 @@
 header:
   version: 3
 
-# PYTHONMALLOC=malloc is the VARIS-18 round 11 Phase 2 ceiling fix
+# PYTHONMALLOC=malloc is the round 11 Phase 2 ceiling fix
 # (drops 3.14.4 GIL race rate ~50% -> ~5%). kas auto-appends each
 # declared env var to BB_ENV_PASSTHROUGH_ADDITIONS at libkas.py:507,
 # so bitbake's clean_environment lets it through to parser-pool
