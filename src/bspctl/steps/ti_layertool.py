@@ -1,7 +1,7 @@
-"""Populate `ti/sources/` via Variscite's `oe-layertool-setup.sh`.
+"""Populate `ti/sources/` via the `oe-layertool-setup.sh` script.
 
 Mirrors the role of :mod:`bspctl.steps.repo` for the NXP side, but
-TI BSP delivery uses Variscite's `varigit/oe-layersetup` script (a
+TI BSP delivery uses the `varigit/oe-layersetup` script (a
 shell wrapper around sequential `git clone` + checkout against pinned
 SHAs in a `processor-sdk-*-config_var<N>.txt` config file) instead of
 Google `repo`.
@@ -83,7 +83,7 @@ def populate(
     # above the oe-layertool checkout), matching the symmetric layout
     # we use on the NXP side.
     layertool_dir = ti_root / "oe-layertool"
-    dl_dir = os.environ.get("DL_DIR", "/mnt/JETM_SATA_9.1T/yocto-cache/downloads")
+    dl_dir = os.environ.get("DL_DIR", "/tmp/yocto-downloads")
     config_rel = str(config_path.relative_to(layertool_dir))
     cmd: list[str] = [
         "bash",

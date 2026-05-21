@@ -14,7 +14,7 @@ a small first-match-wins rule set:
 * unparseable / empty                                          -> ``unknown``
 
 The ``generic`` classification is the BSP-agnostic fallback for kas
-YAMLs that look like real builds but do not target a Variscite SoM
+YAMLs that look like real builds but do not target an NXP/TI SoM
 (e.g. qemuarm64 + poky + meta-arm). Callers layer the
 ``bspctl-tuning-generic.yml`` overlay - which carries only the
 BSP-agnostic optimizations (ccache, MIRRORS, PREMIRRORS, FETCHCMD_wget,
@@ -84,7 +84,7 @@ def detect_bsp_from_yaml(yaml_path: Path) -> Literal["nxp", "ti", "generic", "un
     """Inspect a kas YAML and classify the BSP family.
 
     Pure function over a parsed YAML dict. Returns ``"generic"`` for a
-    kas YAML that parses cleanly but lacks Variscite markers; callers
+    kas YAML that parses cleanly but lacks NXP/TI markers; callers
     use that to layer the BSP-agnostic tuning overlay. Returns
     ``"unknown"`` only for unparseable, empty, or shape-incomplete
     YAMLs - those exit with a typer.Exit(2) and a hint.

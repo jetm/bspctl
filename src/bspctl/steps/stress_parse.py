@@ -10,7 +10,7 @@ The aggregate result lands in ``summary.json`` next to the per-run
 logs; both files live under
 ``<bsp>/build/runs/<run-id>/stress-parse/``. The CLI consumer in
 :mod:`bspctl.cli` exits non-zero when any iteration tripped a
-signature so the run can gate upstream patch submission for VARIS-13.
+signature.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _clear_parse_cache(cfg: BuildConfig, log: RunLogger, iteration: int) -> bool
     * ``<bsp>/build/tmp/cache/`` - where ``${TMPDIR}/cache/`` resolves on
       this layout, holding the per-multiconfig ``bb_cache.dat.<hash>``
       files. Walnascar bitbake repopulates this on every parse, and
-      missing it was the reason the original VARIS-18 run saw the race
+      missing it was the reason the original run saw the race
       fire 3/3 in iter 1-3 (cold-cache) but 0/7 in iter 4-10 (cache
       slowly recovered into ``tmp/cache/`` even though ``build/cache/``
       was wiped each iter).
@@ -171,7 +171,7 @@ def _build_command(
     env var would not survive into the kas shell - inlining the
     assignment on the command line goes through verbatim. When
     ``python_executable`` is given, BB_PYTHON3 points at it instead -
-    used by the VARIS-19 validation to run a patched obmalloc CPython
+    used to run a patched obmalloc CPython
     without reinstalling bspctl under it.
 
     When ``postfile`` is given, append ``-R <path>`` so bitbake reads it
@@ -189,7 +189,7 @@ def _build_command(
     if host_mode:
         bb_python = str(python_executable) if python_executable is not None else sys.executable
         cmd = f"BB_PYTHON3={bb_python} {cmd}"
-    # PYTHONMALLOC=malloc is the VARIS-18 round 11 Phase 2 finding:
+    # PYTHONMALLOC=malloc is the round 11 Phase 2 finding:
     # routes Python allocations through libc malloc instead of obmalloc,
     # eliminating the obmalloc/glibc-arena-at-fork interaction that
     # produces the dominant SIGABRT crash mode on Python 3.14 GIL.
@@ -277,7 +277,7 @@ def run(
 
     ``python_executable`` overrides which Python bitbake re-execs into
     (via BB_PYTHON3) and which interpreter's bin/ leads PATH inside the
-    kas-shell. Used by VARIS-19 to validate a patched obmalloc CPython
+    kas-shell. Used to validate a patched obmalloc CPython
     without reinstalling bspctl under that interpreter. Recorded in
     ``summary.json["python_executable"]`` for the audit trail.
     """

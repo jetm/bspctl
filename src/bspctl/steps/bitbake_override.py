@@ -4,7 +4,7 @@ The BSP ships its own bitbake. NXP carries it under the poky umbrella
 at ``nxp/sources/poky/bitbake/``; TI consumes oe-core directly and
 ships bitbake at the top of ``sources/`` as ``ti/sources/bitbake/``.
 To test in-flight upstream fixes (e.g. the parser fork-race work
-tracked in VARIS-13) without waiting for them to land in NXP/TI
+in progress) without waiting for them to land in NXP/TI
 releases, this step swaps that directory for a symlink to a
 ``--shared`` clone of the user's upstream bitbake repo.
 

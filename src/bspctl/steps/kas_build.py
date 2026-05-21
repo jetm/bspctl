@@ -652,7 +652,7 @@ def _build_env(cfg: BuildConfig, python_executable: Path | None = None) -> dict[
     before its option-parsing loop, making env-var injection unreliable.
 
     ``python_executable`` overrides the host-mode BB_PYTHON3 and PATH
-    interpreter. Used by VARIS-19 stress-parse to point bitbake at a
+    interpreter. Lets stress-parse point bitbake at a
     locally-built CPython (e.g. one with the obmalloc atfork patch)
     without reinstalling bspctl under it. When None, host mode defaults
     to ``sys.executable``.
@@ -757,7 +757,7 @@ def run_shell_capture(
 
     ``python_executable`` is forwarded to :func:`_build_env` so the
     kas shell's PATH and BB_PYTHON3 point at a caller-chosen interpreter
-    (VARIS-19 obmalloc-patch validation).
+    (obmalloc-patch validation).
     """
     log.step_start(step, command=command, stdout_path=str(stdout_path), host_mode=cfg.host_mode)
     if cfg.is_meta_avocado:

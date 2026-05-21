@@ -1,8 +1,8 @@
-"""Topology-only kas YAML generator for the Variscite BSP workspace.
+"""Topology-only kas YAML generator for NXP i.MX and TI Sitara BSP workspaces.
 
 Turns a repo-tool manifest XML (NXP) or an oe-layertool-populated tree
 plus a bitbake-generated ``bblayers.conf`` into a deterministic kas
-YAML covering machine, distro, target, and repos. The Variscite tuning
+YAML covering machine, distro, target, and repos. The BSP tuning
 block (ccache, MIRRORS, PREMIRRORS, FETCHCMD_wget, fork PREMIRRORs,
 renderdoc fix, meta-varis-overrides repo) lives in the static overlays
 under ``overlays/bspctl-tuning-<bsp>.yml`` and is layered in by ``bspctl
@@ -10,7 +10,7 @@ build`` at run time. Keeping topology and tuning in separate files
 means BYO and manifest flows reuse the *same* tuning, with no risk of
 drift between the two outputs.
 
-All the bug fixes from VARIS-03 still apply:
+All the prior bug fixes still apply:
 
 * ``<default>`` with no ``remote=`` attribute no longer crashes
 * Repos with ``name`` != ``path-leaf`` (e.g. ``variscite-bsp-base`` ->
@@ -78,7 +78,7 @@ class KasGenOptions:
 
 
 def parse_bblayers(path: Path) -> dict[str, set[str]]:
-    """Parse a Variscite-generated bblayers.conf into ``{repo: {layer, ...}}``.
+    """Parse a BSP-generated bblayers.conf into ``{repo: {layer, ...}}``.
 
     Tolerates ``=``, ``?=``, ``??=``, and ``+=`` forms; skips tokens that do
     not match ``.../sources/<repo>[/<layer>]``. Returns an empty dict when no

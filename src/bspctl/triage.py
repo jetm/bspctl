@@ -167,13 +167,13 @@ _SUGGESTIONS: list[tuple[re.Pattern[str], str]] = [
         "cmake ccache launcher quoted wrong (meta-oe renderdoc-style bug). "
         'Override CMAKE_CXX_COMPILER_LAUNCHER:pn-<recipe> = "" and '
         'CMAKE_C_COMPILER_LAUNCHER:pn-<recipe> = "" in the kas YAML\'s '
-        "local_conf_header. See VARIS-10 for the upstream fix.",
+        "local_conf_header.",
     ),
     (
         re.compile(r"out of memory|Cannot allocate memory|OOM"),
         "Out of memory. Lower BB_NUMBER_THREADS or close RAM-heavy apps.",
     ),
-    (re.compile(r"No space left on device"), "Disk full. Check df on /, /mnt/BACKUP_ROOT, /mnt/JETM_SATA_9.1T."),
+    (re.compile(r"No space left on device"), "Disk full. Check df on /, and your SSTATE_DIR / DL_DIR mounts."),
     (
         re.compile(r"Failed to fetch URL git://github.com"),
         "github.com clone flaked. Check network; ensure forks/linux-imx is populated "

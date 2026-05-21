@@ -16,8 +16,7 @@ manifestations - corrupted ExpansionError reports, attribute lookups
 on torn objects, generic worker-died traces - have been seen on
 adjacent codepaths.
 
-Full root-cause analysis lives in
-``kb/reference/bitbake-parser-fork-race.md``.
+
 """
 
 from __future__ import annotations
@@ -38,9 +37,8 @@ FORK_RACE_SIGNATURES: list[re.Pattern[str]] = [
 FORK_RACE_SUGGESTION = (
     "bitbake parser worker corrupted by fork-in-multi-threaded-program race "
     "(CPython torn PyType state). Recurring upstream bug; not a recipe "
-    "issue. Manual workaround: re-run `bspctl build` - the next fork roll "
-    "usually wins. Architectural fix tracked in VARIS-13. See "
-    "kb/reference/bitbake-parser-fork-race.md for the full diagnosis."
+    "Manual workaround: re-run `bspctl build` - the next fork roll "
+    "usually wins."
 )
 
 

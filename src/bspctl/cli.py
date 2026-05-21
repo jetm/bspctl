@@ -58,7 +58,7 @@ from bspctl.vendor_config import load_vendors
 from bspctl.workspace import detect
 
 app = typer.Typer(
-    help="BSP orchestrator (Variscite NXP + TI built-in).",
+    help="BSP orchestrator (NXP i.MX + TI Sitara built-in).",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -130,7 +130,7 @@ def _resolve_workspace(
     """Resolve the workspace path with a BYO+generic carve-out.
 
     Generic mode (``bspctl build my.yml`` where ``my.yml`` does not
-    target a Variscite SoM) does not own a workspace subtree - the
+    target an NXP/TI SoM) does not own a workspace subtree - the
     overlay symlink and per-run state land next to the user's YAML.
     Skip the cwd walk in that case so generic builds work from any
     directory.
@@ -220,7 +220,7 @@ def _dispatch_bsp(manifest_arg: str | None) -> tuple[Literal["nxp", "ti"], BspMo
             "[red]Unrecognized manifest shape:[/red] "
             f"{pre!r} matches neither NXP (imx-A.B.C-X.Y.Z.xml) nor TI "
             "(processor-sdk-...-config_var<N>.txt / arago-*.txt). "
-            "See kb/reference/{nxp,ti}-variscite-bsp-versioning.md.",
+            "Check the manifest filename format.",
             markup=True,
         )
         raise typer.Exit(code=2)
@@ -235,7 +235,7 @@ def _dispatch_from_yaml(yaml_path: Path) -> tuple[Literal["nxp", "ti", "generic"
     :func:`bspctl.bsp_detect.detect_bsp_from_yaml`. Returns the
     matching :class:`BspModel` for NXP/TI and ``None`` for generic
     builds (no BspModel applies; the caller layers
-    ``bspctl-tuning-generic.yml`` and skips Variscite-specific pipeline
+    ``bspctl-tuning-generic.yml`` and skips vendor-specific pipeline
     steps). Refuses ``"unknown"`` shapes (empty / unparseable YAMLs)
     with a typer.Exit(2).
     """
@@ -396,9 +396,9 @@ def build(
     * **BYO**: ``bspctl build my.yml`` - skip sync/setup-env/gen-kas,
       apply the static tuning overlay, run kas-container. The YAML is
       classified as NXP, TI, or generic (a kas YAML that does not
-      target a Variscite SoM). Generic mode picks
+      target an NXP/TI SoM). Generic mode picks
       ``bspctl-tuning-generic.yml`` and skips the bitbake-override step
-      since that swaps the Variscite-bundled bitbake.
+      since that swaps the vendor-bundled bitbake.
     * **Manifest-driven**: ``bspctl build -f imx-6.12.49-2.2.0.xml -m imx95-var-dart`` -
       run sync, setup-env, gen-kas (topology-only), then apply overlay
       and build. Same flag surface as before, just with the optimization
@@ -470,7 +470,7 @@ def build(
         if byo_form:
             # BYO path: skip sync, setup-env, gen-kas - the YAML is what
             # the user gave us. Still apply bitbake-override for NXP/TI
-            # (idempotent, swaps the Variscite-bundled bitbake for an
+            # (idempotent, swaps the vendor-bundled bitbake for an
             # upstream clone with the parser fork-race fix). Generic
             # mode skips the override because it targets paths
             # (sources/poky/bitbake or sources/bitbake) that the
@@ -701,7 +701,7 @@ def triage(
     for a BYO build whose runs live next to the YAML
     (``<yaml-parent>/build/runs/``); the BSP family is inferred from
     the run directory's location and reported as ``generic`` for
-    non-Variscite BYO YAMLs.
+    generic BYO YAMLs.
     """
     if kas_yaml is not None:
         resolved = kas_yaml.resolve()
@@ -907,7 +907,7 @@ def gen_kas(
 ) -> None:
     """Regenerate the topology-only kas YAML from current inputs.
 
-    Output is the manifest -> repos topology only. The Variscite tuning
+    Output is the manifest -> repos topology only. The BSP tuning
     block and the meta-varis-overrides repo entry live in the static
     overlay at ``overlays/bspctl-tuning-<bsp>.yml`` and are layered in
     by ``bspctl build`` at run time.
@@ -1092,7 +1092,7 @@ def stress_parse(
         typer.Option(
             "--host",
             help="Bypass kas-container and run plain `kas shell` directly on the host. "
-            "Used by the VARIS-18 Round 8 probe to rule out kas-container/Docker as the "
+            "Runs plain `kas shell` directly on the host to rule out kas-container/Docker as the "
             "parser-fork-race environment. Requires host bitbake build prereqs.",
         ),
     ] = False,
@@ -1110,7 +1110,7 @@ def stress_parse(
             "--python",
             help="Override which Python bitbake re-execs into. Sets BB_PYTHON3 and "
             "leads PATH with the interpreter's bin dir, so stress-parse can validate "
-            "a locally-built CPython (e.g. one carrying the VARIS-19 obmalloc fork-"
+            "a locally-built CPython (e.g. one carrying an obmalloc fork-"
             "safety patch) without reinstalling bspctl under that interpreter. Pass "
             "the absolute path to a python binary; defaults to bspctl's own interpreter.",
         ),

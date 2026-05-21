@@ -1,6 +1,6 @@
 """Per-BSP model for the bspctl CLI.
 
-Variscite ships BSPs for both NXP i.MX and TI Sitara SoM families.
+NXP i.MX and TI Sitara BSP families are supported.
 Each family has its own toolchain (Google ``repo`` + ``var-setup-release.sh``
 for NXP; ``varigit/oe-layersetup`` shell wrapper for TI), its own
 manifest format (``imx-A.B.C-X.Y.Z.xml`` vs ``processor-sdk-...-config_var<N>.txt``),
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 # Examples: imx-6.6.52-2.2.2.xml, imx-6.12.49-2.2.0.xml
 _NXP_MANIFEST_RE = re.compile(r"^imx-\d+\.\d+\.\d+-\d+\.\d+\.\d+\.xml$")
 
-# TI Variscite Processor SDK config filename:
+# TI Processor SDK config filename:
 #   processor-sdk-<poky>-<flavour>-<sdk>-config_<var>.txt
 # where <poky> is the LTS code name (scarthgap, walnascar, ...),
 # <flavour> is "chromium" / "non-chromium" / etc,
@@ -61,7 +61,7 @@ _TI_PROCESSOR_SDK_RE = re.compile(
 )
 
 # TI legacy/Arago manifest filename: arago-<anything>.txt
-# Kept as alternation for forward compatibility with older Variscite
+# Kept as alternation for forward compatibility with older
 # config naming conventions.
 _TI_ARAGO_RE = re.compile(r"^arago-.*\.txt$")
 

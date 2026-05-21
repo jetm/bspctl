@@ -18,9 +18,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# NXP defaults (i.MX BSP, scarthgap warmup machine from
-# kb/runbooks/first-bsp-build.md). Any of these can be overridden by
-# BSPCTL_* env vars; CLI flags override env.
+# NXP defaults (i.MX BSP, scarthgap warmup machine).
+# Any of these can be overridden by BSPCTL_* env vars; CLI flags override env.
 # ---------------------------------------------------------------------------
 
 DEFAULT_NXP_MACHINE = "imx8mp-var-dart"
@@ -31,7 +30,7 @@ DEFAULT_NXP_REPO_BRANCH = "scarthgap"
 
 # ---------------------------------------------------------------------------
 # TI defaults (Sitara AM62x SoM, scarthgap-based Arago SDK 11.x).
-# Pinned to the newest Variscite-shipped TI BSP at task creation time;
+# Pinned to the newest vendor-shipped TI BSP at task creation time;
 # bumped when a new processor-sdk-*-config_var<N>.txt config lands.
 # ---------------------------------------------------------------------------
 
@@ -88,8 +87,7 @@ class BuildConfig:
     repo_branch: str
     container_image: str
     # When True, kas-container is bypassed and plain `kas shell` is invoked
-    # directly on the host. Used by the VARIS-18 Round 8 probe to rule out
-    # kas-container/Docker as the parser-fork-race environment.
+    # directly on the host to rule out kas-container/Docker as the parser-fork-race environment.
     host_mode: bool = False
     kas_yaml_override: Path | None = field(default=None)
 
@@ -120,7 +118,7 @@ class BuildConfig:
 
         For NXP and TI this is ``workspace/<bsp_family>/`` - the
         per-BSP namespace bspctl manages. Generic mode (BYO with no
-        Variscite markers) does not own a workspace subdirectory; the
+        NXP/TI markers) does not own a workspace subdirectory; the
         user's YAML lives wherever they put it, so ``bsp_root`` falls
         back to the YAML's parent directory. That's where the overlay
         symlink and per-run state land for a generic build.
@@ -238,7 +236,7 @@ def resolve(
     ``manifest`` in practice; the dataclass is permissive so callers
     can build configs for tests without juggling exclusivity rules.
 
-    ``bsp_family="generic"`` denotes a non-Variscite BYO build. The
+    ``bsp_family="generic"`` denotes a generic BYO build. The
     machine/distro/image/manifest fields all stay as inert
     placeholders since the manifest-flow pipeline never reads them
     in this mode - the user's kas YAML is the authoritative source.
