@@ -16,25 +16,8 @@ Complete these once before the first release:
 
 ## Per-release checklist
 
-1. Confirm working tree is clean: `git status`.
-2. Run the local validation suite:
-   ```
-   uv run pytest
-   uv run ruff check src/ tests/
-   uv run ruff format --check src/ tests/
-   uv run ty check src/
-   uv build && uvx twine check dist/*
-   ```
-3. Update `## [Unreleased]` in `CHANGELOG.md` with the changes for this release.
-4. Commit the changelog update with `devtool commit`.
-5. Bump the version with bump-my-version:
-   - Patch: `uv run bump-my-version bump patch`
-   - Minor: `uv run bump-my-version bump minor`
-   - Major: `uv run bump-my-version bump major`
-
-   This rewrites `pyproject.toml`, `src/bspctl/__init__.py`, and `CHANGELOG.md`, then creates a `vX.Y.Z` tag.
-6. Push the commit and tag: `git push origin main --follow-tags`.
-7. Verify:
+1. Run `scripts/release.sh patch|minor|major`. The script enforces working-tree, branch, sync, and changelog preconditions, runs the full validation suite, then bumps and pushes atomically.
+2. Verify:
    - GitHub Actions publish workflow on the tag passes.
    - PyPI project page shows the new version: https://pypi.org/project/bspctl/
    - `uv tool install bspctl==X.Y.Z` from a fresh shell succeeds.
