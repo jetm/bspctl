@@ -282,6 +282,12 @@ def resolve(
             infer_repo_branch(resolved_manifest, d_branch),
         )
 
+    # Auto-detect: when KAS_CONTAINER_IMAGE is absent from env and host_mode was
+    # not explicitly requested, fall back to plain kas (no Docker) rather than the
+    # hardcoded default container image. This makes bspctl work out of the box on
+    # hosts without a container setup.
+    effective_host_mode = host_mode or ("KAS_CONTAINER_IMAGE" not in os.environ)
+
     return BuildConfig(
         workspace=workspace.resolve(),
         bsp_family=bsp_family,
@@ -292,6 +298,6 @@ def resolve(
         repo_url=os.environ.get("BSPCTL_REPO_URL", DEFAULT_REPO_URL),
         repo_branch=resolved_branch,
         container_image=os.environ.get("KAS_CONTAINER_IMAGE", DEFAULT_CONTAINER_IMAGE),
-        host_mode=host_mode,
+        host_mode=effective_host_mode,
         kas_yaml_override=kas_yaml.resolve() if kas_yaml is not None else None,
     )

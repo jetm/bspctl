@@ -212,7 +212,7 @@ CLI flags, env vars, and built-in defaults in that precedence order.
 | `BSPCTL_MANIFEST` | `--manifest` | `imx-6.6.52-2.2.2.xml` |
 | `BSPCTL_REPO_URL` | - | `https://github.com/varigit/variscite-bsp-platform.git` |
 | `BSPCTL_REPO_BRANCH` | - | inferred from manifest prefix |
-| `KAS_CONTAINER_IMAGE` | - | `jetm/kas-build-env:latest` |
+| `KAS_CONTAINER_IMAGE` | - | When absent: host mode active (plain `kas`, no Docker). Set to enable container builds. |
 | `SSTATE_DIR` | - | kas default (unset = skip check) |
 | `DL_DIR` | - | kas default (unset = skip check) |
 

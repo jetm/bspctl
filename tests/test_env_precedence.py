@@ -117,3 +117,35 @@ def test_no_env_yields_default(tmp_path, monkeypatch):
     cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp")
 
     assert cfg.machine == DEFAULT_NXP_MACHINE, "Absent env + no CLI flag must fall back to BSP-family default"
+
+
+# ---------------------------------------------------------------------------
+# 3. KAS_CONTAINER_IMAGE -> host_mode auto-detection
+# ---------------------------------------------------------------------------
+
+
+def test_host_mode_auto_enables_when_kas_container_image_absent(tmp_path, monkeypatch):
+    """Absent KAS_CONTAINER_IMAGE must auto-enable host_mode."""
+    monkeypatch.delenv("KAS_CONTAINER_IMAGE", raising=False)
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp")
+
+    assert cfg.host_mode is True, "host_mode must auto-enable when KAS_CONTAINER_IMAGE is absent"
+
+
+def test_host_mode_false_when_kas_container_image_set(tmp_path, monkeypatch):
+    """With KAS_CONTAINER_IMAGE set, host_mode stays False."""
+    monkeypatch.setenv("KAS_CONTAINER_IMAGE", "test/kas-image:latest")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp")
+
+    assert cfg.host_mode is False, "host_mode must be False when KAS_CONTAINER_IMAGE is configured"
+
+
+def test_explicit_host_mode_beats_kas_container_image(tmp_path, monkeypatch):
+    """Explicit host_mode=True wins even when KAS_CONTAINER_IMAGE is set."""
+    monkeypatch.setenv("KAS_CONTAINER_IMAGE", "test/kas-image:latest")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", host_mode=True)
+
+    assert cfg.host_mode is True, "Explicit host_mode=True must override KAS_CONTAINER_IMAGE presence"

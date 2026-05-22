@@ -1,8 +1,9 @@
-"""Tests for the ``bspctl build --host`` flag.
+"""Tests for the ``bspctl build --host`` flag and KAS_CONTAINER_IMAGE auto-detection.
 
 Covers CLI parsing only: invoking ``bspctl build <yaml> --host`` must
-flip ``BuildConfig.host_mode`` to ``True`` through the existing
-``resolve()`` plumbing, and omitting the flag must default to ``False``.
+flip ``BuildConfig.host_mode`` to ``True``. Without ``--host`` and without
+``KAS_CONTAINER_IMAGE`` set, ``resolve()`` auto-enables host mode. When
+``KAS_CONTAINER_IMAGE`` is set, container mode is the default.
 
 The actual kas/kas-container invocation is short-circuited via
 ``--dry-run`` plus ``--skip-doctor`` so these tests stay at the
@@ -73,8 +74,9 @@ def test_build_host_flag_sets_host_mode(tmp_path: Path) -> None:
     assert captured[0].host_mode is True
 
 
-def test_build_no_host_flag_defaults_false(tmp_path: Path) -> None:
-    """Without ``--host`` the resolved BuildConfig keeps ``host_mode=False``."""
+def test_build_no_host_flag_with_container_image_uses_container(tmp_path: Path, monkeypatch) -> None:
+    """Without ``--host`` but with ``KAS_CONTAINER_IMAGE`` set, host_mode is False."""
+    monkeypatch.setenv("KAS_CONTAINER_IMAGE", "test/kas-image:latest")
     kas_yaml = _make_generic_yaml(tmp_path)
     captured: list[BuildConfig] = []
     runner = CliRunner()
@@ -91,3 +93,24 @@ def test_build_no_host_flag_defaults_false(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert len(captured) == 1
     assert captured[0].host_mode is False
+
+
+def test_build_no_host_flag_without_container_image_auto_enables_host(tmp_path: Path, monkeypatch) -> None:
+    """Without ``--host`` and without ``KAS_CONTAINER_IMAGE``, host_mode auto-enables."""
+    monkeypatch.delenv("KAS_CONTAINER_IMAGE", raising=False)
+    kas_yaml = _make_generic_yaml(tmp_path)
+    captured: list[BuildConfig] = []
+    runner = CliRunner()
+
+    with (
+        patch("bspctl.cli.load_vendors", return_value=[]),
+        patch("bspctl.cli.resolve", side_effect=_capturing_resolve(captured)),
+    ):
+        result = runner.invoke(
+            app,
+            ["build", str(kas_yaml), "--skip-doctor", "--dry-run"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0].host_mode is True
