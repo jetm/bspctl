@@ -44,15 +44,15 @@ BUMP_TYPE="$1"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# (b) Current branch must be main.
+# (b) Working tree must be clean (no staged, unstaged, or untracked changes).
+if [ -n "$(git status --porcelain)" ]; then
+    die "working tree has uncommitted changes; commit or stash before releasing"
+fi
+
+# (c) Current branch must be main.
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [ "$CURRENT_BRANCH" != "main" ]; then
     die "current branch is '$CURRENT_BRANCH'; releases must be cut from main"
-fi
-
-# (c) Working tree must be clean (no staged, unstaged, or untracked changes).
-if [ -n "$(git status --porcelain)" ]; then
-    die "working tree has uncommitted changes; commit or stash before releasing"
 fi
 
 # (d) Local main must match origin/main exactly (no divergence in either
@@ -84,11 +84,8 @@ UNRELEASED_BODY="$(
     awk '
         /^## \[Unreleased\]/ { in_block = 1; next }
         in_block && /^## \[/ { exit }
-        in_block { print }
-    ' CHANGELOG.md \
-    | grep -vE '^\s*$' \
-    | grep -vE '^###' \
-    || true
+        in_block && $0 !~ /^[[:space:]]*$/ && $0 !~ /^[[:space:]]*#/ { print }
+    ' CHANGELOG.md
 )"
 if [ -z "$UNRELEASED_BODY" ]; then
     die "CHANGELOG.md has no entries under [Unreleased]; fill the section before releasing"

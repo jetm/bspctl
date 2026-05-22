@@ -182,8 +182,7 @@ def test_run_all_skips_docker_checks_in_host_mode() -> None:
         "docker-ulimits",
     }
     assert names.isdisjoint(docker_check_names), (
-        f"host-mode run_all returned Docker-dependent check names: "
-        f"{names & docker_check_names}"
+        f"host-mode run_all returned Docker-dependent check names: {names & docker_check_names}"
     )
 
 
