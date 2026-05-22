@@ -2,7 +2,8 @@
 
 bspctl is a kas wrapper for Yocto BSP builds. kas is the modern Yocto build
 tool that describes a stack as a YAML topology (repos, layers, machine,
-distro) and drives `bitbake` inside a container. bspctl sits above kas and
+distro) and drives `bitbake` on the host; `kas-container` wraps it in a
+Docker container for reproducibility. bspctl defaults to `kas-container` and
 adds the rest of the workflow that kas leaves to you:
 
 1. Layers a curated tuning overlay on top of your kas YAML at build time
@@ -232,6 +233,7 @@ bspctl triage                           # post-mortem latest run
 bspctl log                              # tail latest kas.log live
 bspctl shell                            # kas-container interactive shell
 bspctl shell -c "bitbake -e virtual/kernel | grep ^PREFERRED"
+bspctl shell --host                     # plain kas shell on the host (no Docker)
 bspctl gen-kas -o nxp/my-build.yml      # write topology YAML only
 bspctl clean                            # remove <bsp>/build/
 ```
