@@ -1,0 +1,60 @@
+# Example kas YAML for a wrynose (Yocto master) minimal build on qemux86-64.
+#
+# Uses local checkouts from ~/repos/personal/yocto/ - no network access needed.
+# Repos must already be on the wrynose branch before building.
+#
+# Layer coverage:
+#   - openembedded-core/meta:      core Yocto recipes and classes (wrynose)
+#   - meta-openembedded sub-layers: meta-oe, meta-python, meta-networking,
+#                                   meta-filesystems (wrynose)
+#
+# Repos present in ~/repos/personal/yocto/ but excluded here because their
+# LAYERSERIES_COMPAT does not match wrynose:
+#   - meta-yocto         (meta-poky / meta-yocto-bsp)  -> blacksail (ahead of wrynose)
+#   - meta-raspberrypi                                  -> mickledore
+#   - meta-security                                     -> styhead/walnascar
+#   - meta-virtualization                               -> styhead
+#   - meta-secure-core                                  -> styhead
+#
+# Repos skipped entirely (not layers):
+#   - yocto-docs    (documentation only)
+#   - yocto-kernel-cache  (supplemental kernel config data, no layer.conf)
+#
+# Bitbake:
+#   wrynose requires BB_MIN_VERSION = "2.18.0". No explicit bitbake repo is
+#   needed: oe-init-build-env looks for bitbake at $OEROOT/../bitbake and
+#   finds ~/repos/personal/yocto/bitbake/ automatically. Ensure that checkout
+#   is on the 2.18 branch before building:
+#     git -C ~/repos/personal/yocto/bitbake checkout origin/2.18
+#
+# Usage:
+#   bspctl build examples/kas-qemux86-64-wrynose.yml
+#
+# bspctl auto-detects host mode (plain kas, no Docker) when KAS_CONTAINER_IMAGE
+# is not set. Standard Yocto host build prerequisites apply.
+
+header:
+  version: 3
+
+machine: qemux86-64
+# nodistro: oe-core is distro-less; use this until a wrynose meta-poky is
+# available locally. Swap to 'poky' once meta-yocto updates its
+# LAYERSERIES_COMPAT to include wrynose.
+distro: nodistro
+target: core-image-minimal
+
+repos:
+  openembedded-core:
+    url: null
+    path: /home/tiamarin/repos/personal/yocto/openembedded-core
+    layers:
+      meta:
+
+  meta-openembedded:
+    url: null
+    path: /home/tiamarin/repos/personal/yocto/meta-openembedded
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-filesystems:

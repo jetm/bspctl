@@ -3,13 +3,12 @@
 # Copy this file under ti/ (e.g. ti/my-build.yml) and edit machine /
 # distro / target / repos to taste. Then run:
 #
-#     varis bitbake-override --apply
-#     varis build ti/my-build.yml
+#     bspctl bitbake-override --apply
+#     bspctl build ti/my-build.yml
 #
-# `varis build` automatically layers overlays/varis-tuning-ti.yml on
-# top, which pulls in the shared Variscite tuning block (ccache,
-# MIRRORS, PREMIRRORS, FETCHCMD_wget) plus the TI fork PREMIRRORs and
-# the meta-varis-overrides-ti repo.
+# `bspctl build` automatically layers overlays/bspctl-tuning-ti.yml on
+# top, which pulls in the shared tuning block (ccache, MIRRORS, PREMIRRORS,
+# FETCHCMD_wget) plus the TI fork PREMIRRORs and meta-varis-overrides-ti.
 distro: arago
 header:
   version: 3
