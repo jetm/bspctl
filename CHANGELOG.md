@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Overlay YAMLs were missing from the published wheel: `overlays/` at repo root is not picked up by `uv_build`. Moved to `src/bspctl/overlays/` so the files are included as package data. Every prior release was broken - `bspctl build` raised `FileNotFoundError` on the first run.
+- `_overlay_dir()` walked `__file__` three levels up to the repo root, producing a non-existent path under `site-packages/`. Replaced with `importlib.resources.files("bspctl") / "overlays"`.
+
 ## [0.1.0] - 2026-05-22
 
 ### Added
