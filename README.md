@@ -117,8 +117,14 @@ What the overlay unions in:
 - **TI only**: ti-linux-kernel + ti-u-boot fork PREMIRRORs,
   `meta-varis-overrides-ti` layer
 
-Edit `overlays/bspctl-tuning-<bsp>.yml` to change any knob. The change
-applies to BYO and manifest flows alike, with no risk of drift.
+To override a knob, pass a second kas YAML as a colon-joined overlay:
+
+```bash
+bspctl build my-build.yml:my-tuning.yml
+```
+
+`my-tuning.yml` is merged on top of the bspctl default overlay at build time.
+The built-in overlays ship inside the package and are not user-editable directly.
 
 ### Pre-flight checks
 

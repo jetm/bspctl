@@ -9,15 +9,16 @@ in CI before it lands in a build.
 
 from __future__ import annotations
 
+import importlib.resources
 from pathlib import Path
 
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-NXP_OVERLAY = REPO_ROOT / "overlays" / "bspctl-tuning-nxp.yml"
-TI_OVERLAY = REPO_ROOT / "overlays" / "bspctl-tuning-ti.yml"
-GENERIC_OVERLAY = REPO_ROOT / "overlays" / "bspctl-tuning-generic.yml"
+_OVERLAY_DIR = Path(str(importlib.resources.files("bspctl") / "overlays"))
+NXP_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-nxp.yml"
+TI_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-ti.yml"
+GENERIC_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-generic.yml"
 
 _SHARED_LINES = (
     'CCACHE_DIR = "/work/ccache"',

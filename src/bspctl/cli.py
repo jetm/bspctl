@@ -26,6 +26,7 @@ the dispatched callables differ.
 
 from __future__ import annotations
 
+import importlib.resources
 import os
 import sys
 import time
@@ -167,13 +168,14 @@ def _bsp_from_cwd(workspace: Path) -> Literal["nxp", "ti"] | None:
 
 
 def _overlay_dir() -> Path:
-    """Locate the ``overlays/`` directory at the bspctl repo root.
+    """Locate the ``overlays/`` package data directory.
 
-    cli.py lives at ``src/bspctl/cli.py``; the repo root is three
-    parents up. Editable installs land here; wheel installs would need
-    package_data and an importlib.resources lookup.
+    Uses ``importlib.resources`` so the lookup works for both editable
+    installs (source tree) and wheel installs (site-packages).
+    ``uv_build`` includes all non-``.py`` files under ``src/bspctl/``
+    automatically, so the YAMLs land at ``bspctl/overlays/`` in the wheel.
     """
-    return Path(__file__).resolve().parent.parent.parent / "overlays"
+    return Path(str(importlib.resources.files("bspctl") / "overlays"))
 
 
 def _overlay_for(bsp: BspModel | None) -> Path:
