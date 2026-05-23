@@ -81,6 +81,40 @@ On a clean workspace, the first run populates `sources/` via repo sync and
 takes hours. Subsequent runs skip sync automatically and go straight to
 bitbake.
 
+### Example run
+
+```text
+❯ bspctl build examples/kas-qemux86-64-wrynose.yml
+:: bspctl build  BYO examples/kas-qemux86-64-wrynose.yml
+INFO     build mode=byo bsp=generic yaml=examples/kas-qemux86-64-wrynose.yml
+         overlay=bspctl/overlays/bspctl-tuning-generic.yml
+INFO     → doctor
+                                                         Pre-flight diagnosis
+ Check             ┃ Sev   ┃ Status ┃ Detail
+━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ host-tools        │ BLOCK │ PASS   │ GENERIC required binaries present (kas-container, docker, python3)
+ docker-daemon     │ BLOCK │ PASS   │ server 29.5.1
+ container-image   │ BLOCK │ PASS   │ jetm/kas-build-env:latest present
+ container-os      │ BLOCK │ PASS   │ fedora  / Python 3.12.10
+ container-bitbake │ INFO  │ SKIP   │ inspection failed
+ cache-dirs        │ BLOCK │ PASS   │ SSTATE_DIR=/mnt/sstate, DL_DIR=/mnt/downloads
+ sysctl            │ WARN  │ PASS   │ inotify/swappiness sane
+ docker-ulimits    │ WARN  │ PASS   │ nofile soft=65536
+ disk-free         │ BLOCK │ PASS   │ >= 50G free on each mount
+ memory            │ WARN  │ PASS   │ available+swap=173717M
+ bitbake-override  │ INFO  │ SKIP   │ poky tree absent (pre-bootstrap)
+ bitbake-locks     │ BLOCK │ PASS   │ no stale locks or sockets
+INFO     ✓ doctor
+INFO     ↷ bitbake_override (generic mode)
+INFO     → kas_build
+INFO     exec: kas-container --runtime-args -v examples/ccache:/work/ccache:rw build \
+         kas-qemux86-64-wrynose.yml:.bspctl/overlays/bspctl-tuning-generic.yml
+kas_build ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸ 5190/5191 tasks core-image-minimal.bb:do_create_image_sbom_spdx live 1s  +453M 0:23:10
+INFO     ✓ kas_build
+build succeeded
+artifacts: examples/build/tmp/deploy/images/generic
+```
+
 ## What bspctl adds
 
 ### Source sync
