@@ -1,18 +1,21 @@
 """Tests for env var precedence rules (spec: env-var-namespace).
 
-Verifies the two-level stack in :func:`bspctl.config.resolve`:
+Verifies the resolution stack in :func:`bspctl.config.resolve`:
 
 1. CLI flag (explicit arg) beats env var.
-2. Env var beats BSP-family default.
+2. Env var beats the ``user_config`` field.
+3. ``user_config`` field beats the BSP-family default.
 """
 
 from __future__ import annotations
 
 from bspctl.config import (
+    DEFAULT_CONTAINER_IMAGE,
     DEFAULT_NXP_MACHINE,
     DEFAULT_NXP_MANIFEST,
     resolve,
 )
+from bspctl.user_config import UserConfig
 
 _MACHINE_VAR = "BSPCTL_MACHINE"
 _MANIFEST_VAR = "BSPCTL_MANIFEST"
@@ -149,3 +152,70 @@ def test_explicit_host_mode_beats_kas_container_image(tmp_path, monkeypatch):
     cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", host_mode=True)
 
     assert cfg.host_mode is True, "Explicit host_mode=True must override KAS_CONTAINER_IMAGE presence"
+
+
+# ---------------------------------------------------------------------------
+# 4. user_config tier (config.toml values)
+# ---------------------------------------------------------------------------
+
+
+def test_user_config_machine_beats_default(tmp_path, monkeypatch):
+    """A user_config field must override the BSP-family default when no env/CLI is set."""
+    monkeypatch.delenv(_MACHINE_VAR, raising=False)
+    uc = UserConfig(nxp_machine="imx93-var-som")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", user_config=uc)
+
+    assert cfg.machine == "imx93-var-som", "user_config.nxp_machine must beat the built-in default"
+    assert cfg.machine != DEFAULT_NXP_MACHINE
+
+
+def test_env_machine_beats_user_config(tmp_path, monkeypatch):
+    """An env var must override the matching user_config field."""
+    monkeypatch.setenv(_MACHINE_VAR, "env-board")
+    uc = UserConfig(nxp_machine="config-board")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", user_config=uc)
+
+    assert cfg.machine == "env-board", f"{_MACHINE_VAR} env var must beat user_config.nxp_machine"
+
+
+def test_cli_machine_beats_user_config(tmp_path, monkeypatch):
+    """An explicit CLI arg must override the matching user_config field."""
+    monkeypatch.delenv(_MACHINE_VAR, raising=False)
+    uc = UserConfig(nxp_machine="config-board")
+
+    cfg = resolve(
+        workspace=_workspace(tmp_path),
+        bsp_family="nxp",
+        machine="cli-board",  # CLI flag
+        user_config=uc,
+    )
+
+    assert cfg.machine == "cli-board", "CLI flag 'machine' must beat user_config.nxp_machine"
+
+
+def test_user_config_container_image_used_when_env_absent(tmp_path, monkeypatch):
+    """user_config.container_image is used when KAS_CONTAINER_IMAGE is unset."""
+    monkeypatch.delenv("KAS_CONTAINER_IMAGE", raising=False)
+    uc = UserConfig(container_image="config/kas-image:latest")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", user_config=uc)
+
+    assert cfg.container_image == "config/kas-image:latest", (
+        "user_config.container_image must be used when KAS_CONTAINER_IMAGE is unset"
+    )
+    assert cfg.container_image != DEFAULT_CONTAINER_IMAGE
+    assert cfg.host_mode is False, "A config-supplied container_image must disable host_mode auto-enable"
+
+
+def test_env_container_image_beats_user_config(tmp_path, monkeypatch):
+    """KAS_CONTAINER_IMAGE env var must override user_config.container_image."""
+    monkeypatch.setenv("KAS_CONTAINER_IMAGE", "env/kas-image:latest")
+    uc = UserConfig(container_image="config/kas-image:latest")
+
+    cfg = resolve(workspace=_workspace(tmp_path), bsp_family="nxp", user_config=uc)
+
+    assert cfg.container_image == "env/kas-image:latest", (
+        "KAS_CONTAINER_IMAGE env var must beat user_config.container_image"
+    )
