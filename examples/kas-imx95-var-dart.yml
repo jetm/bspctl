@@ -11,7 +11,7 @@
 # FETCHCMD_wget, renderdoc fix, fork PREMIRRORs) and meta-varis-overrides.
 distro: fsl-imx-xwayland
 header:
-  version: 3
+  version: 21
 machine: imx95-var-dart
 repos:
   meta-arm:

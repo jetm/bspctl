@@ -98,7 +98,7 @@ def test_materialize_overlay_copies_file(tmp_path: Path) -> None:
     overlays_dir = tmp_path / "external-overlays"
     overlays_dir.mkdir()
     overlay_src = overlays_dir / "bspctl-tuning-nxp.yml"
-    overlay_src.write_text("header:\n  version: 3\n")
+    overlay_src.write_text("header:\n  version: 21\n")
 
     cfg = _cfg_at(tmp_path)
     rel = materialize_overlay(cfg, overlay_src)
@@ -115,7 +115,7 @@ def test_materialize_overlay_idempotent(tmp_path: Path) -> None:
     (tmp_path / "nxp").mkdir()
     overlay_src = tmp_path / "ext" / "bspctl-tuning-nxp.yml"
     overlay_src.parent.mkdir()
-    overlay_src.write_text("header:\n  version: 3\n")
+    overlay_src.write_text("header:\n  version: 21\n")
 
     cfg = _cfg_at(tmp_path)
     rel1 = materialize_overlay(cfg, overlay_src)
@@ -133,8 +133,8 @@ def test_materialize_overlay_refreshes_content(tmp_path: Path) -> None:
     overlay_src_b = tmp_path / "b" / "bspctl-tuning-nxp.yml"
     overlay_src_a.parent.mkdir()
     overlay_src_b.parent.mkdir()
-    overlay_src_a.write_text("header:\n  version: 3\n# from A\n")
-    overlay_src_b.write_text("header:\n  version: 3\n# from B\n")
+    overlay_src_a.write_text("header:\n  version: 21\n# from A\n")
+    overlay_src_b.write_text("header:\n  version: 21\n# from B\n")
 
     cfg = _cfg_at(tmp_path)
     materialize_overlay(cfg, overlay_src_a)
@@ -149,7 +149,7 @@ def test_materialize_overlay_replaces_existing_symlink(tmp_path: Path) -> None:
     (tmp_path / "nxp").mkdir()
     overlay_src = tmp_path / "ext" / "bspctl-tuning-nxp.yml"
     overlay_src.parent.mkdir()
-    overlay_src.write_text("header:\n  version: 3\n")
+    overlay_src.write_text("header:\n  version: 21\n")
 
     cfg = _cfg_at(tmp_path)
     overlay_dir = cfg.bsp_root / ".bspctl" / "overlays"
@@ -221,7 +221,7 @@ def test_generic_materialize_overlay_under_yaml_parent(tmp_path: Path) -> None:
 
     overlay_src = tmp_path / "ext" / "bspctl-tuning-generic.yml"
     overlay_src.parent.mkdir()
-    overlay_src.write_text("header:\n  version: 3\n")
+    overlay_src.write_text("header:\n  version: 21\n")
 
     cfg = BuildConfig(
         workspace=tmp_path,

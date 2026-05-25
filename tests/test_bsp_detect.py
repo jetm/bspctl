@@ -106,7 +106,7 @@ def test_empty_yaml_returns_unknown(tmp_path: Path) -> None:
 
 def test_yaml_without_machine_or_repos_returns_unknown(tmp_path: Path) -> None:
     """A YAML carrying only header/distro is too sparse to be a build."""
-    p = _write(tmp_path, "header:\n  version: 3\ndistro: poky\n")
+    p = _write(tmp_path, "header:\n  version: 21\ndistro: poky\n")
     assert detect_bsp_from_yaml(p) == "unknown"
 
 

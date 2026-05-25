@@ -11,7 +11,7 @@
 # FETCHCMD_wget) plus the TI fork PREMIRRORs and meta-varis-overrides-ti.
 distro: arago
 header:
-  version: 3
+  version: 21
 machine: am62x-var-som
 repos:
   meta-arago:

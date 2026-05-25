@@ -93,4 +93,4 @@ def test_topology_output_keeps_machine_distro_target(tmp_path: Path) -> None:
     assert out["machine"] == "am62x-var-som"
     assert out["distro"] == "arago"
     assert out["target"] == "var-thin-image"
-    assert out["header"] == {"version": 3}
+    assert out["header"] == {"version": 21}

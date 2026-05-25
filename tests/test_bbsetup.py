@@ -37,6 +37,7 @@ def _copy_fixture(tmp_path: Path) -> Path:
     shutil.copytree(
         FIXTURE,
         dest,
+    ignore=shutil.ignore_patterns("kas-bbsetup.yml"),
     )
     return dest
 
@@ -172,7 +173,7 @@ def test_write_bbsetup_yaml_structure(tmp_path):
 
     assert output == ws / "kas-bbsetup.yml"
     doc = yaml.safe_load(output.read_text())
-    assert doc["header"]["version"] == 3
+    assert doc["header"]["version"] == 21
     assert doc["machine"] == "qemux86-64"
     assert doc["distro"] == "nodistro"
     assert doc["target"] == "core-image-minimal"

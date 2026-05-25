@@ -41,7 +41,7 @@ def test_example_yaml_parses(kas_doc: dict) -> None:
 
 
 def test_example_yaml_has_kas_header(kas_doc: dict) -> None:
-    assert kas_doc.get("header", {}).get("version") == 3
+    assert kas_doc.get("header", {}).get("version") == 21
 
 
 def test_example_yaml_targets_qemux86_64(kas_doc: dict) -> None:

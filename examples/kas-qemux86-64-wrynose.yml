@@ -30,7 +30,7 @@
 #   build/
 
 header:
-  version: 3
+  version: 21
 
 machine: qemux86-64
 # nodistro: oe-core is distro-less; use this until a wrynose meta-poky is

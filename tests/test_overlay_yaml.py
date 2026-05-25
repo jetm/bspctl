@@ -62,11 +62,11 @@ def generic_overlay() -> dict:
 
 
 def test_nxp_overlay_has_kas_header(nxp_overlay: dict) -> None:
-    assert nxp_overlay.get("header") == {"version": 3}
+    assert nxp_overlay.get("header") == {"version": 21}
 
 
 def test_ti_overlay_has_kas_header(ti_overlay: dict) -> None:
-    assert ti_overlay.get("header") == {"version": 3}
+    assert ti_overlay.get("header") == {"version": 21}
 
 
 def test_nxp_overlay_carries_shared_tuning(nxp_overlay: dict) -> None:
@@ -114,7 +114,7 @@ def test_ti_overlay_carries_meta_varis_overrides_ti(ti_overlay: dict) -> None:
 
 
 def test_generic_overlay_has_kas_header(generic_overlay: dict) -> None:
-    assert generic_overlay.get("header") == {"version": 3}
+    assert generic_overlay.get("header") == {"version": 21}
 
 
 def test_generic_overlay_carries_shared_tuning(generic_overlay: dict) -> None:
