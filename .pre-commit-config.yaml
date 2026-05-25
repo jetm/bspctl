@@ -35,9 +35,19 @@ repos:
         files: \.(sh|bash)$
         exclude: ^claude/
 
-  # Local hooks - custom validation
+  # Local hooks - TOML and custom validation
   - repo: local
     hooks:
+      - id: tombi-format
+        name: tombi format
+        entry: tombi format
+        language: system
+        types: [toml]
+      - id: tombi-lint
+        name: tombi lint
+        entry: tombi lint
+        language: system
+        types: [toml]
       - id: pre-commit-autoupdate
         name: Update pre-commit hooks
         entry: pre-commit autoupdate
