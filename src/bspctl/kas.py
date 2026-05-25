@@ -311,7 +311,6 @@ def translate_bbsetup_config(
     bb_config = cfg.get("bitbake-config", {})
 
     # Map each source to the layer subdirs it contributes (bb-layers entries).
-    # Sources never referenced get an empty layers mapping.
     layers_by_source: dict[str, dict[str, None]] = {name: {} for name in sources}
     for entry in bb_config.get("bb-layers", []):
         source, _, subdir = entry.partition("/")
