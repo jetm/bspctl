@@ -242,7 +242,12 @@ falls through to generic mode.
 
 ## Configuration
 
-CLI flags, env vars, and built-in defaults in that precedence order.
+CLI flags, `BSPCTL_*` env vars, the user config file, and built-in defaults
+form the resolution chain, highest precedence first:
+
+```text
+CLI flag > BSPCTL_* env var > config.toml > built-in default
+```
 
 | Env var | Flag | Default |
 |---------|------|---------|
@@ -255,6 +260,54 @@ CLI flags, env vars, and built-in defaults in that precedence order.
 | `KAS_CONTAINER_IMAGE` | - | When absent: host mode active (plain `kas`, no Docker). Set to enable container builds. |
 | `SSTATE_DIR` | - | kas default (unset = skip check) |
 | `DL_DIR` | - | kas default (unset = skip check) |
+
+### Config file
+
+A user-global config file at `~/.config/bspctl/config.toml` sets persistent
+defaults that slot between `BSPCTL_*` env vars and the built-in defaults. The
+file is optional: when it is absent, bspctl falls back to the built-in defaults
+with no error. bspctl never auto-creates it. Missing keys and unknown keys are
+ignored; only the keys below are recognized.
+
+```toml
+[defaults.nxp]
+machine  = "imx8mp-var-dart"
+distro   = "fsl-imx-xwayland"
+image    = "core-image-minimal"
+manifest = "imx-6.6.52-2.2.2.xml"
+repo_url = "https://github.com/varigit/variscite-bsp-platform.git"
+
+[defaults.ti]
+machine  = "am62x-var-som"
+distro   = "arago"
+image    = "var-thin-image"
+manifest = "processor-sdk-scarthgap-chromium-11.00.09.04-config_var01.txt"
+
+[build]
+container_image = "jetm/kas-build-env:latest"
+doctor          = true
+
+[layers]
+show_hashes = false
+```
+
+| Section | Key | Default | Effect |
+|---------|-----|---------|--------|
+| `[defaults.nxp]` | `machine` | `imx8mp-var-dart` | Default NXP machine. |
+| `[defaults.nxp]` | `distro` | `fsl-imx-xwayland` | Default NXP distro. |
+| `[defaults.nxp]` | `image` | `core-image-minimal` | Default NXP image. |
+| `[defaults.nxp]` | `manifest` | `imx-6.6.52-2.2.2.xml` | Default NXP manifest. |
+| `[defaults.nxp]` | `repo_url` | varigit BSP platform | repo-tool source URL for NXP. |
+| `[defaults.ti]` | `machine` | (none) | Default TI machine. |
+| `[defaults.ti]` | `distro` | (none) | Default TI distro. |
+| `[defaults.ti]` | `image` | (none) | Default TI image. |
+| `[defaults.ti]` | `manifest` | (none) | Default TI manifest. |
+| `[build]` | `container_image` | `jetm/kas-build-env:latest` | kas-container image. Setting it also activates container mode the same way `KAS_CONTAINER_IMAGE` does. |
+| `[build]` | `doctor` | `true` | When `false`, skip the pre-flight doctor checks before `build`/`sync` (same as always passing `--skip-doctor`). `--skip-doctor` still works as a per-run override. |
+| `[layers]` | `show_hashes` | `false` | When `true`, print each layer's git short hash and branch before `build`/`sync`, equivalent to passing `--show-layers`. |
+
+See `examples/config.toml` for a fully annotated reference to copy to
+`~/.config/bspctl/config.toml`.
 
 Workspace is resolved by walking up from CWD for a `.bspctl.toml` marker
 or `nxp/`/`ti/` subdirectories. Generic BYO builds skip the walk.
