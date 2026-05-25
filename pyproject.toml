@@ -100,6 +100,7 @@ pythonpath = ["src"]
 addopts = ["-v", "--tb=short"]
 timeout = 30
 markers = [
+    "unit: fast hermetic tests with no external tools or services",
     "integration: tests requiring external tools or services",
 ]
 
