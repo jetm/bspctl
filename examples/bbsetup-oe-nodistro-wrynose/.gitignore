@@ -1,0 +1,9 @@
+# Generated and workspace artifacts - not part of the committed fixture
+kas-bbsetup.yml
+layers/
+.bspctl/
+ccache/
+build/runs/
+build/tmp/
+build/bitbake.lock
+build/conf/

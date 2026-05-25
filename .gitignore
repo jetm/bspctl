@@ -12,3 +12,7 @@ dist/
 examples/.bspctl
 examples/layers
 examples/ccache
+
+# bbsetup example fixture: track the init-build-env sentinel (build/ is otherwise ignored)
+!examples/bbsetup-oe-nodistro-wrynose/build/
+!examples/bbsetup-oe-nodistro-wrynose/build/init-build-env

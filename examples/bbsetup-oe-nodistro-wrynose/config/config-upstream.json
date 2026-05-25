@@ -1,0 +1,44 @@
+{
+    "bitbake-config": {
+        "bb-layers": ["openembedded-core/meta"],
+        "description": "OpenEmbedded 'nodistro'",
+        "name": "nodistro",
+        "oe-fragment-choices": {
+            "machine": "machine/qemux86-64"
+        },
+        "setup-dir-name": "oe-nodistro-wrynose"
+    },
+    "data": {
+        "description": "OpenEmbedded - 'nodistro' basic configuration, release 6.0 'wrynose'",
+        "expires": "2030-05-31",
+        "sources": {
+            "bitbake": {
+                "git-remote": {
+                    "branch": "2.18",
+                    "rev": "2.18",
+                    "uri": "https://git.openembedded.org/bitbake"
+                }
+            },
+            "openembedded-core": {
+                "git-remote": {
+                    "branch": "wrynose",
+                    "rev": "wrynose",
+                    "uri": "https://git.openembedded.org/openembedded-core"
+                }
+            },
+            "yocto-docs": {
+                "git-remote": {
+                    "branch": "wrynose",
+                    "rev": "wrynose",
+                    "uri": "https://git.yoctoproject.org/yocto-docs"
+                }
+            }
+        },
+        "version": "1.0"
+    },
+    "name": "oe-nodistro-wrynose",
+    "non-interactive-cmdline-options": ["oe-nodistro-wrynose", "nodistro", "machine/qemux86-64"],
+    "skip-selection": false,
+    "source-overrides": {"sources": {}},
+    "type": "registry"
+}
