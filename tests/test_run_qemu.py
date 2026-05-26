@@ -193,7 +193,7 @@ def test_run_qemu_invokes_script_with_bsp_root_cwd(tmp_path: Path) -> None:
 def test_cli_run_non_meta_avocado_exits_2(tmp_path: Path) -> None:
     from typer.testing import CliRunner
 
-    import bspctl.cli as cli_module
+    import bspctl.commands._app as cli_module
     from bspctl.cli import app
 
     cli_module._VENDORS = None
@@ -205,7 +205,7 @@ def test_cli_run_non_meta_avocado_exits_2(tmp_path: Path) -> None:
     kas_yaml = yaml_dir / "imx8.yml"
     kas_yaml.write_text("machine: imx8mp-var-dart\n")
 
-    with patch("bspctl.cli.load_vendors", return_value=[]):
+    with patch("bspctl.commands._app.load_vendors", return_value=[]):
         result = runner.invoke(app, ["run", str(kas_yaml)])
 
     assert result.exit_code == 2
@@ -214,7 +214,7 @@ def test_cli_run_non_meta_avocado_exits_2(tmp_path: Path) -> None:
 def test_cli_run_missing_script_exits_2(tmp_path: Path) -> None:
     from typer.testing import CliRunner
 
-    import bspctl.cli as cli_module
+    import bspctl.commands._app as cli_module
     from bspctl.cli import app
 
     cli_module._VENDORS = None
@@ -226,7 +226,7 @@ def test_cli_run_missing_script_exits_2(tmp_path: Path) -> None:
     cfg = _meta_avocado_cfg(sources)
     (cfg.bsp_root / "build").mkdir(parents=True)
 
-    with patch("bspctl.cli.load_vendors", return_value=[]):
+    with patch("bspctl.commands._app.load_vendors", return_value=[]):
         result = runner.invoke(app, ["run", str(kas_yaml)])
 
     assert result.exit_code == 2

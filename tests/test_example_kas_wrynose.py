@@ -12,7 +12,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-import bspctl.cli as cli_module
+import bspctl.commands._app as cli_module
 from bspctl.cli import app
 
 pytestmark = pytest.mark.unit
@@ -103,7 +103,7 @@ def test_example_yaml_dry_run_succeeds(tmp_path: Path, monkeypatch) -> None:
     """
     monkeypatch.setenv("KAS_CONTAINER_IMAGE", "ghcr.io/siemens/kas/kas:5.2")
     runner = CliRunner()
-    with patch("bspctl.cli.load_vendors", return_value=[]):
+    with patch("bspctl.commands._app.load_vendors", return_value=[]):
         result = runner.invoke(
             app,
             ["build", str(EXAMPLE_YAML), "--skip-doctor", "--dry-run"],

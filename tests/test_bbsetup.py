@@ -237,24 +237,24 @@ def test_translate_rejects_malformed_fixed_revisions(tmp_path):
 
 
 def test_bbsetup_workspace_walks_up_from_subdir(tmp_path, monkeypatch):
-    from bspctl import cli
+    from bspctl.commands._helpers import _bbsetup_workspace
 
     ws = _copy_fixture(tmp_path)
     monkeypatch.chdir(ws / "config")
 
-    assert cli._bbsetup_workspace(None) == ws.resolve()
+    assert _bbsetup_workspace(None) == ws.resolve()
 
 
 def test_uninitialized_bbsetup_dir_detects_missing_sentinel(tmp_path):
-    from bspctl import cli
+    from bspctl.commands._helpers import _uninitialized_bbsetup_dir
 
     ws = tmp_path / "partial"
     (ws / "config").mkdir(parents=True)
     (ws / "config" / "config-upstream.json").write_text(json.dumps({"data": {"sources": {}}, "bitbake-config": {}}))
     # No build/init-build-env -> recognized signature but not initialized.
-    assert cli._uninitialized_bbsetup_dir(ws) == ws.resolve()
+    assert _uninitialized_bbsetup_dir(ws) == ws.resolve()
 
     # Once the sentinel exists, it is considered initialized (not pending).
     (ws / "build").mkdir()
     (ws / "build" / "init-build-env").write_text("")
-    assert cli._uninitialized_bbsetup_dir(ws) is None
+    assert _uninitialized_bbsetup_dir(ws) is None

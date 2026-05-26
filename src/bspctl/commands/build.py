@@ -1,0 +1,361 @@
+"""bspctl build subcommand - full BSP build pipeline."""
+
+from __future__ import annotations
+
+import os
+import shutil
+from pathlib import Path
+from typing import Annotated
+
+import typer
+
+import bspctl.commands._app as _state
+from bspctl.commands._app import app, console
+from bspctl.commands._helpers import (
+    _bbsetup_workspace,
+    _clean_build_dir,
+    _dispatch_bsp,
+    _dispatch_from_yaml,
+    _overlay_for,
+    _print_diagnosis,
+    _print_layer_hashes,
+    _resolve_workspace,
+    _uninitialized_bbsetup_dir,
+)
+from bspctl.config import DEFAULT_CONTAINER_IMAGE, resolve
+from bspctl.diagnostics import any_blocking_failure, run_all
+from bspctl.kas import translate_bbsetup_config, write_bbsetup_yaml
+from bspctl.observability import RunLogger
+from bspctl.steps import bitbake_override as step_override
+from bspctl.steps import kas_build as step_kas
+from bspctl.workspace import detect
+
+
+def _run_bbsetup_build(
+    setup_dir: Path,
+    *,
+    machine: str | None,
+    distro: str | None,
+    image: str | None,
+    host_mode: bool,
+    clean: bool,
+    skip_doctor: bool,
+    dry_run: bool,
+    show_layers: bool,
+) -> None:
+    """Full build pipeline for a bitbake-setup workspace.
+
+    Factored out of ``build()`` to keep the main function readable.
+    """
+    cfg = resolve(
+        workspace=setup_dir,
+        bsp_family="bbsetup",
+        machine=machine,
+        distro=distro,
+        image=image,
+        host_mode=host_mode,
+        user_config=_state._USER_CONFIG,
+    )
+    overlay_source = _overlay_for(None)
+    bb_target = cfg.image if cfg.image not in ("", "generic") else "core-image-minimal"
+
+    try:
+        translated = translate_bbsetup_config(
+            setup_dir, target=bb_target, machine_override=machine, distro_override=distro
+        )
+    except ValueError as exc:
+        console.print(f"[red]bitbake-setup config error:[/] {exc}")
+        raise typer.Exit(code=2) from exc
+    if translated["machine"] is None:
+        console.print(
+            "[red]no machine selected[/] - pass --machine or add a `machine/<name>` "
+            "fragment to the bitbake-setup config"
+        )
+        raise typer.Exit(code=2)
+
+    if "KAS_CONTAINER_IMAGE" not in os.environ and cfg.container_image != DEFAULT_CONTAINER_IMAGE:
+        console.print(f"[dim]container image from config.toml: {cfg.container_image}[/]")
+
+    console.print(f"[bold]::[/] bspctl build [bbsetup] {setup_dir}")
+
+    if clean:
+        tmp_dir = cfg.bsp_root / "build" / "tmp"
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir)
+            console.print(f"[green]removed[/] {tmp_dir}")
+
+    cfg.runs_dir.mkdir(parents=True, exist_ok=True)
+    with RunLogger(runs_dir=cfg.runs_dir) as log:
+        log.info(f"build mode=bbsetup bsp=bbsetup yaml={cfg.kas_yaml} overlay={overlay_source}")
+
+        run_doctor = not skip_doctor and (_state._USER_CONFIG is None or _state._USER_CONFIG.doctor)
+        if run_doctor:
+            log.step_start("doctor")
+            results = run_all(cfg, None)
+            diag_path = log.run_dir / "diagnosis.txt"
+            diag_path.write_text(
+                "\n".join(f"{r.severity.value:5} {r.status.value:4} {r.name:22} {r.message}" for r in results) + "\n"
+            )
+            _print_diagnosis(results)
+            if any_blocking_failure(results):
+                log.step_fail("doctor", reason="blocking failure")
+                raise typer.Exit(code=2)
+            log.step_ok("doctor", checks=len(results))
+
+        write_bbsetup_yaml(
+            setup_dir,
+            target=bb_target,
+            machine_override=machine,
+            distro_override=distro,
+        )
+
+        if dry_run:
+            log.step_skip("kas_build", reason="dry-run")
+            console.print(f"[green]dry-run complete[/]: would run kas-container with {cfg.kas_yaml} + {overlay_source}")
+            return
+
+        rc = step_kas.run_build(
+            cfg,
+            log,
+            kas_yaml=cfg.kas_yaml,
+            overlay_source=overlay_source,
+            extra_overlays=[],
+        )
+        if rc != 0:
+            console.print(
+                f"[red]kas-container build failed (exit {rc}).[/] Run `bspctl triage {log.run_id}` for details."
+            )
+            raise typer.Exit(code=rc)
+        deploy = cfg.bsp_root / "build" / "tmp" / "deploy" / "images" / translated["machine"]
+        console.print("[bold green]build succeeded[/]")
+        console.print(f"artifacts: {deploy}")
+
+
+@app.command()
+def build(
+    kas_yaml: Annotated[
+        str | None,
+        typer.Argument(
+            help="Optional kas YAML (BYO form). Colon-separated overlays are supported: "
+            "main.yml:overlay.yml. When set, sync/setup-env/gen-kas are skipped.",
+        ),
+    ] = None,
+    machine: Annotated[str | None, typer.Option("--machine", "-m", help="e.g. imx8mp-var-dart, am62x-var-som")] = None,
+    distro: Annotated[str | None, typer.Option("--distro", "-d", help="e.g. fsl-imx-xwayland, arago")] = None,
+    image: Annotated[
+        str | None,
+        typer.Option("--image", "-i", help="e.g. core-image-minimal, var-thin-image"),
+    ] = None,
+    manifest: Annotated[
+        str | None,
+        typer.Option(
+            "--manifest",
+            "-f",
+            help="manifest filename (NXP imx-*.xml or TI processor-sdk-*-config_var<N>.txt)",
+        ),
+    ] = None,
+    branch: Annotated[
+        str | None,
+        typer.Option(
+            "--branch",
+            "-b",
+            help="branch override; inferred from manifest filename when omitted",
+        ),
+    ] = None,
+    skip_sync: Annotated[
+        bool, typer.Option("--skip-sync", help="Skip sync (repo init+sync for NXP, oe-layertool for TI)")
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Regenerate YAML and exit before invoking kas/kas-container build")
+    ] = False,
+    skip_doctor: Annotated[
+        bool,
+        typer.Option("--skip-doctor", help="Skip the pre-flight diagnosis (not recommended)"),
+    ] = False,
+    clean: Annotated[
+        bool,
+        typer.Option(
+            "--clean",
+            help="Remove <bsp>/build/ before running the pipeline (forces a from-scratch build).",
+        ),
+    ] = False,
+    workspace: Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace root override")] = None,
+    host_mode: Annotated[
+        bool,
+        typer.Option(
+            "--host",
+            help=(
+                "Bypass kas-container and run plain kas build directly on the host. "
+                "Requires host bitbake build prereqs."
+            ),
+        ),
+    ] = False,
+    show_layers: Annotated[
+        bool,
+        typer.Option("--show-layers", help="Print layer git hashes before build."),
+    ] = False,
+) -> None:
+    """Run the build pipeline idempotently.
+
+    Two forms:
+
+    * **BYO**: ``bspctl build my.yml`` - skip sync/setup-env/gen-kas,
+      apply the static tuning overlay, run kas-container. The YAML is
+      classified as NXP, TI, or generic (a kas YAML that does not
+      target an NXP/TI SoM). Generic mode picks
+      ``bspctl-tuning-generic.yml`` and skips the bitbake-override step
+      since that swaps the vendor-bundled bitbake.
+    * **Manifest-driven**: ``bspctl build -f imx-6.12.49-2.2.0.xml -m imx95-var-dart`` -
+      run sync, setup-env, gen-kas (topology-only), then apply overlay
+      and build. Same flag surface as before, just with the optimization
+      stack moved to the overlay file.
+
+    The two forms are mutually exclusive: passing both a positional
+    YAML and ``--manifest`` exits non-zero.
+    """
+    byo_form = kas_yaml is not None
+    if byo_form and manifest is not None:
+        console.print("[red]choose either a positional kas YAML or --manifest, not both[/]")
+        raise typer.Exit(code=2)
+
+    setup_dir = _bbsetup_workspace(workspace) if not byo_form and manifest is None else None
+    if setup_dir is not None:
+        _run_bbsetup_build(
+            setup_dir,
+            machine=machine,
+            distro=distro,
+            image=image,
+            host_mode=host_mode,
+            clean=clean,
+            skip_doctor=skip_doctor,
+            dry_run=dry_run,
+            show_layers=show_layers,
+        )
+        return
+
+    if not byo_form and manifest is None:
+        pending = _uninitialized_bbsetup_dir(workspace)
+        if pending is not None:
+            console.print(
+                f"[red]bitbake-setup workspace at {pending} is not initialized[/] "
+                "- run `bitbake-setup init` first, then retry"
+            )
+            raise typer.Exit(code=2)
+
+    main_yaml: Path | None = None
+    extra_overlays: list[Path] = []
+    if kas_yaml is not None:
+        parts = kas_yaml.split(":")
+        main_yaml = Path(parts[0])
+        extra_overlays = [Path(p) for p in parts[1:]]
+
+    if byo_form:
+        family, bsp = _dispatch_from_yaml(main_yaml)
+    else:
+        family, bsp = _dispatch_bsp(manifest)
+
+    ws = _resolve_workspace(workspace, kas_yaml=main_yaml, family=family)
+    cfg = resolve(
+        workspace=ws,
+        bsp_family=family,
+        machine=machine,
+        distro=distro,
+        image=image,
+        manifest=manifest,
+        repo_branch=branch,
+        host_mode=host_mode,
+        kas_yaml=main_yaml,
+        user_config=_state._USER_CONFIG,
+    )
+
+    overlay_source = _overlay_for(bsp)
+
+    if "KAS_CONTAINER_IMAGE" not in os.environ and cfg.container_image != DEFAULT_CONTAINER_IMAGE:
+        console.print(f"[dim]container image from config.toml: {cfg.container_image}[/]")
+
+    effective_show_layers = show_layers or (_state._USER_CONFIG is not None and _state._USER_CONFIG.show_hashes)
+
+    label = f"BYO {kas_yaml}" if byo_form else f"{cfg.machine} / {cfg.distro} / {cfg.image}"
+    console.print(f"[bold]::[/] bspctl build [{family}] {label}")
+
+    if clean:
+        _clean_build_dir(cfg)
+
+    cfg.runs_dir.mkdir(parents=True, exist_ok=True)
+    with RunLogger(runs_dir=cfg.runs_dir) as log:
+        log.info(
+            f"build mode={'byo' if byo_form else 'manifest'} bsp={family} yaml={cfg.kas_yaml} overlay={overlay_source}",
+        )
+
+        run_doctor = not skip_doctor and (_state._USER_CONFIG is None or _state._USER_CONFIG.doctor)
+        if run_doctor:
+            log.step_start("doctor")
+            results = run_all(cfg, bsp)
+            diag_path = log.run_dir / "diagnosis.txt"
+            diag_path.write_text(
+                "\n".join(f"{r.severity.value:5} {r.status.value:4} {r.name:22} {r.message}" for r in results) + "\n"
+            )
+            _print_diagnosis(results)
+            if any_blocking_failure(results):
+                log.step_fail("doctor", reason="blocking failure")
+                raise typer.Exit(code=2)
+            log.step_ok("doctor", checks=len(results))
+
+        if effective_show_layers:
+            _print_layer_hashes(cfg)
+
+        if byo_form:
+            if family == "generic":
+                log.step_skip("bitbake_override", reason="generic mode")
+            else:
+                step_override.apply(cfg, log)
+        else:
+            state = detect(cfg)
+            if state.needs_repo_sync and not skip_sync:
+                reasons: list[str] = []
+                if state.repo_broken:
+                    reasons.append(".repo/ broken")
+                if state.manifest_mismatch:
+                    reasons.append(f"manifest {state.repo_manifest_include!r} -> {cfg.manifest!r}")
+                if state.branch_mismatch:
+                    reasons.append(f"branch {state.repo_manifests_branch!r} -> {cfg.repo_branch!r}")
+                if state.sha_drift:
+                    reasons.append(f"{len(state.sha_drift)} pinned SHA drift")
+                if reasons:
+                    console.print("[yellow]manifest drift:[/] " + "; ".join(reasons) + " - forcing full re-sync")
+                bsp.sync_step(cfg, log, force_init=state.needs_full_reinit)
+            else:
+                log.step_skip(
+                    "repo_sync" if family == "nxp" else "ti_layertool",
+                    reason="already synced" if not skip_sync else "user skipped",
+                )
+
+            state = detect(cfg)
+            if state.needs_setup_env:
+                bsp.setup_env_step(cfg, log)
+            else:
+                log.step_skip("setup_env", reason="bblayers.conf present")
+
+            step_override.apply(cfg, log)
+            step_kas.regenerate_yaml(cfg, log, bsp=bsp)
+
+        if dry_run:
+            log.step_skip("kas_build", reason="dry-run")
+            console.print(f"[green]dry-run complete[/]: would run kas-container with {cfg.kas_yaml} + {overlay_source}")
+            return
+
+        rc = step_kas.run_build(
+            cfg,
+            log,
+            kas_yaml=cfg.kas_yaml,
+            overlay_source=overlay_source,
+            extra_overlays=extra_overlays,
+        )
+        if rc != 0:
+            console.print(
+                f"[red]kas-container build failed (exit {rc}).[/] Run `bspctl triage {log.run_id}` for details."
+            )
+            raise typer.Exit(code=rc)
+        deploy = cfg.bsp_root / "build" / "tmp" / "deploy" / "images" / cfg.machine
+        console.print("[bold green]build succeeded[/]")
+        console.print(f"artifacts: {deploy}")

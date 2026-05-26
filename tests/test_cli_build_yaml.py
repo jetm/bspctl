@@ -368,14 +368,14 @@ def test_vendor_config_bad_entry_exits_code_2(monkeypatch: pytest.MonkeyPatch) -
 
     from typer.testing import CliRunner
 
-    import bspctl.cli as cli_module
+    import bspctl.commands._app as cli_module
     from bspctl.cli import app
 
     # Reset the cached vendors so _get_vendors() runs fresh.
     cli_module._VENDORS = None
 
     runner = CliRunner()
-    with patch("bspctl.cli.load_vendors", side_effect=ValueError("bad entry")):
+    with patch("bspctl.commands._app.load_vendors", side_effect=ValueError("bad entry")):
         result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 2

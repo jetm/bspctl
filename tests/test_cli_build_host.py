@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-import bspctl.cli as cli_module
+import bspctl.commands._app as cli_module
 from bspctl.cli import app
 from bspctl.config import BuildConfig
 from bspctl.config import resolve as real_resolve
@@ -63,8 +63,8 @@ def test_build_host_flag_sets_host_mode(tmp_path: Path) -> None:
     runner = CliRunner()
 
     with (
-        patch("bspctl.cli.load_vendors", return_value=[]),
-        patch("bspctl.cli.resolve", side_effect=_capturing_resolve(captured)),
+        patch("bspctl.commands._app.load_vendors", return_value=[]),
+        patch("bspctl.commands.build.resolve", side_effect=_capturing_resolve(captured)),
     ):
         result = runner.invoke(
             app,
@@ -84,8 +84,8 @@ def test_build_no_host_flag_with_container_image_uses_container(tmp_path: Path, 
     runner = CliRunner()
 
     with (
-        patch("bspctl.cli.load_vendors", return_value=[]),
-        patch("bspctl.cli.resolve", side_effect=_capturing_resolve(captured)),
+        patch("bspctl.commands._app.load_vendors", return_value=[]),
+        patch("bspctl.commands.build.resolve", side_effect=_capturing_resolve(captured)),
     ):
         result = runner.invoke(
             app,
@@ -105,8 +105,8 @@ def test_build_no_host_flag_without_container_image_auto_enables_host(tmp_path: 
     runner = CliRunner()
 
     with (
-        patch("bspctl.cli.load_vendors", return_value=[]),
-        patch("bspctl.cli.resolve", side_effect=_capturing_resolve(captured)),
+        patch("bspctl.commands._app.load_vendors", return_value=[]),
+        patch("bspctl.commands.build.resolve", side_effect=_capturing_resolve(captured)),
     ):
         result = runner.invoke(
             app,
