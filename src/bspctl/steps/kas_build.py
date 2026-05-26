@@ -386,6 +386,7 @@ def run_build(
     du_path = log.du_samples_path
 
     def du_loop() -> None:
+        error_logged = False
         while not stop_event.wait(timeout=30):
             build_tmp = cfg.bsp_root / "build" / "tmp"
             if not build_tmp.is_dir():
@@ -403,7 +404,10 @@ def run_build(
                         fh.write(f"{int(time.time())}\t{bytes_}\n")
                     state["prev_du_bytes"] = state["cur_du_bytes"]
                     state["cur_du_bytes"] = bytes_
-            except Exception:  # noqa: BLE001 - sampler must not crash the build
+            except (subprocess.SubprocessError, OSError, ValueError) as exc:
+                if not error_logged:
+                    log.warn(f"du sampler failed, disk-usage tracking disabled: {exc}")
+                    error_logged = True
                 continue
 
     sampler = threading.Thread(target=du_loop, daemon=True)
