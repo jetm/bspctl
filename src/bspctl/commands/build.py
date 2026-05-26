@@ -310,6 +310,7 @@ def build(
             else:
                 step_override.apply(cfg, log)
         else:
+            assert bsp is not None
             state = detect(cfg)
             if state.needs_repo_sync and not skip_sync:
                 reasons: list[str] = []
