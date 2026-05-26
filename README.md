@@ -1,3 +1,5 @@
+[![CI](https://github.com/jetm/bspctl/actions/workflows/ci.yml/badge.svg)](https://github.com/jetm/bspctl/actions/workflows/ci.yml)
+
 # bspctl
 
 bspctl is a kas wrapper for Yocto BSP builds. kas is the modern Yocto build
