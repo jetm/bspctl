@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -17,9 +18,6 @@ from bspctl.commands._helpers import (
 )
 from bspctl.config import resolve
 from bspctl.diagnostics import any_blocking_failure, run_all
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @app.command()

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal
+from pathlib import Path
+from typing import Annotated, Literal
 
 import typer
 
@@ -15,9 +16,6 @@ from bspctl.commands._helpers import (
     _workspace_from_cwd,
 )
 from bspctl.config import resolve
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @app.command()

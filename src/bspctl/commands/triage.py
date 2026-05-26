@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Annotated, Literal
+from pathlib import Path
+from typing import Annotated, Literal
 
 import typer
 
@@ -11,9 +12,6 @@ from bspctl.bsp_detect import detect_kas_workspace, is_meta_avocado_yaml
 from bspctl.commands._app import app, console
 from bspctl.commands._helpers import _bbsetup_workspace, _workspace_from_cwd
 from bspctl.triage import analyse
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _find_run(

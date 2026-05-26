@@ -129,6 +129,9 @@ known-first-party = ["bspctl"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/bspctl/cli.py" = ["B008"]
+# Typer evaluates annotations at runtime via inspect.signature(eval_str=True);
+# Path and other stdlib types used in command signatures must not be TYPE_CHECKING-guarded.
+"src/bspctl/commands/*.py" = ["TC003"]
 
 [tool.ty.rules]
 # Noisy without full type annotations - project uses gradual typing

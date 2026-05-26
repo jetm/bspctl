@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -12,9 +13,6 @@ from bspctl.commands._helpers import _dispatch_bsp, _workspace_from_cwd
 from bspctl.config import resolve
 from bspctl.observability import RunLogger
 from bspctl.steps import bitbake_override as step_override
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @app.command("bitbake-override")

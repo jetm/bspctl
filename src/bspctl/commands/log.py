@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import TYPE_CHECKING, Annotated
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -16,9 +17,6 @@ from bspctl.commands._helpers import (
     _resolve_workspace,
 )
 from bspctl.config import resolve
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _LOG_FILES: dict[str, str] = {
     "kas": "kas.log",

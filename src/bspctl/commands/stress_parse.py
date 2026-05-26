@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Annotated
+from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.table import Table
@@ -20,9 +21,6 @@ from bspctl.observability import RunLogger
 from bspctl.steps import bitbake_override as step_override
 from bspctl.steps import kas_build as step_kas
 from bspctl.steps import stress_parse as step_stress_parse
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @app.command("stress-parse")

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -15,9 +16,6 @@ from bspctl.commands._helpers import (
 )
 from bspctl.config import resolve
 from bspctl.kas import KasGenOptions, write_bbsetup_yaml, write_yaml
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @app.command("gen-kas")
