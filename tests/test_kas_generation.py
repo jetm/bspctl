@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from bspctl.kas import (
     NXP_KAS_TEMPLATE,
     TI_KAS_TEMPLATE,
@@ -23,6 +25,8 @@ from bspctl.kas import (
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+pytestmark = pytest.mark.unit
 
 
 def _make_options(

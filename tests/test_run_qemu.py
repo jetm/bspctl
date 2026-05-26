@@ -13,6 +13,8 @@ import pytest
 from bspctl.config import BuildConfig
 from bspctl.steps.run_qemu import _find_meta_avocado_dir, resolve_run_script
 
+pytestmark = pytest.mark.unit
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

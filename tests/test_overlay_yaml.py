@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+pytestmark = pytest.mark.unit
+
 _OVERLAY_DIR = Path(str(importlib.resources.files("bspctl") / "overlays"))
 NXP_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-nxp.yml"
 TI_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-ti.yml"

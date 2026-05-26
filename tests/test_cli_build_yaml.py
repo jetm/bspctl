@@ -20,6 +20,8 @@ from bspctl.steps.kas_build import (
     materialize_overlay,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _cfg_at(workspace: Path, *, family: str = "nxp") -> BuildConfig:
     return BuildConfig(

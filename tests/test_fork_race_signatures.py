@@ -18,6 +18,8 @@ from bspctl.fork_race_signatures import (
     scan,
 )
 
+pytestmark = pytest.mark.unit
+
 POSITIVE_CASES: list[tuple[str, str]] = [
     (
         r"Parser-\d+\[\d+\]: segfault at",

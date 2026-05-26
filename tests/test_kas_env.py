@@ -10,13 +10,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from bspctl.config import BuildConfig
 from bspctl.steps.kas_build import _build_env, _ccache_args
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
+pytestmark = pytest.mark.unit
 
 
 def _make_cfg(workspace: Path, bsp_family: str = "nxp", *, host_mode: bool = False) -> BuildConfig:

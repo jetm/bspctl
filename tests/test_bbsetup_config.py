@@ -8,7 +8,11 @@ any bbsetup-specific path logic.
 
 from __future__ import annotations
 
+import pytest
+
 from bspctl.config import resolve
+
+pytestmark = pytest.mark.unit
 
 
 def test_resolve_bbsetup_does_not_raise(tmp_path):

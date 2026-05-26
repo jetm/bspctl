@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
     from typer.testing import CliRunner as _CliRunner
 
+pytestmark = pytest.mark.unit
+
 
 def _synced_state() -> WorkspaceState:
     """A workspace state that needs neither sync nor setup-env.

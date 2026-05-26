@@ -26,6 +26,8 @@ from bspctl.diagnostics import (
     run_all,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _cfg() -> BuildConfig:
     return BuildConfig(

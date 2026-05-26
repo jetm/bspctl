@@ -22,8 +22,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from bspctl.config import BuildConfig
 from bspctl.steps import kas_build
+
+pytestmark = pytest.mark.unit
 
 
 def _make_cfg(workspace: Path, *, host_mode: bool = False) -> BuildConfig:

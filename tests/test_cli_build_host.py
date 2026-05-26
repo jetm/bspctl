@@ -27,6 +27,8 @@ from bspctl.config import resolve as real_resolve
 if TYPE_CHECKING:
     from pathlib import Path
 
+pytestmark = pytest.mark.unit
+
 
 def _make_generic_yaml(tmp_path: Path) -> Path:
     """Write a minimal generic kas YAML and return its path."""

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 from bspctl.cli import _resolve_workspace, _workspace_from_cwd
 
+pytestmark = pytest.mark.unit
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

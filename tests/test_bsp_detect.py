@@ -11,12 +11,16 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import pytest
+
 from bspctl.bsp_detect import (
     detect_bsp_from_yaml,
     detect_kas_workspace,
     is_bbsetup_workspace,
     is_meta_avocado_yaml,
 )
+
+pytestmark = pytest.mark.unit
 
 if TYPE_CHECKING:
     from pathlib import Path

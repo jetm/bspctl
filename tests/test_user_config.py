@@ -13,6 +13,8 @@ from bspctl.user_config import UserConfig, load_user_config
 if TYPE_CHECKING:
     from pathlib import Path
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.unit
 def test_missing_file_returns_defaults(tmp_path: Path) -> None:

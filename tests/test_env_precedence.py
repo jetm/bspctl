@@ -9,6 +9,8 @@ Verifies the resolution stack in :func:`bspctl.config.resolve`:
 
 from __future__ import annotations
 
+import pytest
+
 from bspctl.config import (
     DEFAULT_CONTAINER_IMAGE,
     DEFAULT_NXP_MACHINE,
@@ -16,6 +18,8 @@ from bspctl.config import (
     resolve,
 )
 from bspctl.user_config import UserConfig
+
+pytestmark = pytest.mark.unit
 
 _MACHINE_VAR = "BSPCTL_MACHINE"
 _MANIFEST_VAR = "BSPCTL_MANIFEST"

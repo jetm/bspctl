@@ -12,9 +12,11 @@ from bspctl.vendor_config import VendorEntry, load_vendors
 if TYPE_CHECKING:
     from pathlib import Path
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
-# VendorEntry validation via __post_init__
+# VendorEntry validation
 # ---------------------------------------------------------------------------
 
 

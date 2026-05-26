@@ -15,6 +15,8 @@ from typer.testing import CliRunner
 import bspctl.cli as cli_module
 from bspctl.cli import app
 
+pytestmark = pytest.mark.unit
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLE_YAML = REPO_ROOT / "examples" / "kas-qemux86-64-wrynose.yml"
 

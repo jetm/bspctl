@@ -12,7 +12,11 @@ the BSP-bundled bitbake for a local fork).
 
 from __future__ import annotations
 
+import pytest
+
 from bspctl.workspace import WorkspaceState
+
+pytestmark = pytest.mark.unit
 
 
 def _ti_state(*, repo_initialized: bool = True) -> WorkspaceState:

@@ -14,6 +14,8 @@ import pytest
 
 from bspctl.bsp_model import BspModel, detect_bsp_family, get_model
 
+pytestmark = pytest.mark.unit
+
 # ---------------------------------------------------------------------------
 # detect_bsp_family
 # ---------------------------------------------------------------------------

@@ -6,6 +6,8 @@ import pytest
 
 from bspctl.bsp_model import infer_bsp_branch
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.parametrize(
     "config,expected",

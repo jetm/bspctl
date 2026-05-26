@@ -17,6 +17,8 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
+
 from bspctl.config import BuildConfig
 from bspctl.observability import RunLogger
 from bspctl.steps import stress_parse
@@ -24,7 +26,7 @@ from bspctl.steps import stress_parse
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
+pytestmark = pytest.mark.unit
 
 
 def _cfg(workspace: Path, family: str = "nxp") -> BuildConfig:
