@@ -21,6 +21,7 @@ _OVERLAY_DIR = Path(str(importlib.resources.files("bspctl") / "overlays"))
 NXP_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-nxp.yml"
 TI_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-ti.yml"
 GENERIC_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-generic.yml"
+HASHEQUIV_OVERLAY = _OVERLAY_DIR / "bspctl-tuning-hashequiv.yml"
 
 _SHARED_LINES = (
     'CCACHE_DIR = "/work/ccache"',
@@ -32,6 +33,17 @@ _SHARED_LINES = (
     "MIRRORS = ",
     "PREMIRRORS:prepend = ",
     "FETCHCMD_wget",
+)
+
+# Tokens added by the performance-optimizations change; present in all three
+# BSP-specific overlays (NXP, TI, generic).
+_TUNING_PERF_LINES = (
+    "BB_NUMBER_PARSE_THREADS",
+    "BB_DISKMON_DIRS",
+    "BB_PRESSURE_MAX_CPU",
+    "BB_PRESSURE_MAX_IO",
+    "BB_PRESSURE_MAX_MEMORY",
+    "BB_SCHEDULER",
 )
 
 _NXP_ONLY_LINES = (
@@ -149,3 +161,43 @@ def test_generic_overlay_omits_meta_varis_overrides(generic_overlay: dict) -> No
 def test_generic_overlay_declares_pythonmalloc_env(generic_overlay: dict) -> None:
     """PYTHONMALLOC=malloc is BSP-agnostic; the parser fork race fires on every BSP."""
     assert generic_overlay.get("env") == {"PYTHONMALLOC": "malloc"}
+
+
+@pytest.fixture
+def hashequiv_overlay() -> dict:
+    return _load(HASHEQUIV_OVERLAY)
+
+
+def test_nxp_overlay_carries_perf_tuning(nxp_overlay: dict) -> None:
+    body = nxp_overlay["local_conf_header"]["bspctl-tuning"]
+    for needle in _TUNING_PERF_LINES:
+        assert needle in body, f"NXP overlay missing: {needle!r}"
+
+
+def test_ti_overlay_carries_perf_tuning(ti_overlay: dict) -> None:
+    body = ti_overlay["local_conf_header"]["bspctl-tuning"]
+    for needle in _TUNING_PERF_LINES:
+        assert needle in body, f"TI overlay missing: {needle!r}"
+
+
+def test_generic_overlay_carries_perf_tuning(generic_overlay: dict) -> None:
+    body = generic_overlay["local_conf_header"]["bspctl-tuning"]
+    for needle in _TUNING_PERF_LINES:
+        assert needle in body, f"generic overlay missing: {needle!r}"
+
+
+def test_generic_overlay_carries_nice_ionice(generic_overlay: dict) -> None:
+    body = generic_overlay["local_conf_header"]["bspctl-tuning"]
+    assert "BB_TASK_NICE_LEVEL" in body
+    assert "BB_TASK_IONICE_LEVEL" in body
+
+
+def test_hashequiv_overlay_has_kas_header(hashequiv_overlay: dict) -> None:
+    assert hashequiv_overlay.get("header") == {"version": 21}
+
+
+def test_hashequiv_overlay_sets_signature_handler(hashequiv_overlay: dict) -> None:
+    body = hashequiv_overlay["local_conf_header"]["bspctl-tuning-hashequiv"]
+    assert 'BB_SIGNATURE_HANDLER = "OEEquivHash"' in body
+    assert "BB_HASHSERVE" in body
+    assert "BB_HASHSERVE_UPSTREAM" in body

@@ -38,5 +38,30 @@
 # container_image = "jetm/kas-build-env:latest"  # default: jetm/kas-build-env:latest (KAS_CONTAINER_IMAGE). Setting this enables container builds, the same as setting the env var.
 # doctor = true   # default: true. When false, skip the pre-flight doctor checks on every `build` and `sync` (equivalent to always passing --skip-doctor). The --skip-doctor flag still works as a per-run override.
 
+# Download and shared-state cache directories. When set here the value is
+# passed as DL_DIR / SSTATE_DIR inside the kas container. An environment
+# variable of the same name takes precedence over these config keys, so
+# per-run overrides (DL_DIR=/fast/ssd bspctl build) still win.
+# dl_dir    = "/work/downloads"    # no default; bitbake uses <build>/downloads
+# sstate_dir = "/work/sstate"      # no default; bitbake uses <build>/sstate-cache
+
+# Shared-state mirror URL. Passed as SSTATE_MIRRORS. Env var wins on conflict.
+# sstate_mirrors = "file:///srv/sstate/PATH;downloadfilename=PATH"
+
+# BitBake task scheduler. "completion" prioritises finishing started packages
+# first (best for incremental builds); "speed" runs the most ready tasks
+# immediately (best for clean builds on many-core hosts). Env var wins.
+# scheduler = "completion"
+
+# PSI (Pressure Stall Information) throttle thresholds (0-95).
+# BitBake pauses new tasks while the avg10 PSI reading for that resource
+# exceeds the threshold, preventing CPU/IO/memory contention from
+# degrading build performance. The config value overrides any env var so
+# that machine-calibrated thresholds are applied consistently.
+# Run `bspctl doctor --psi-calibrate` to get recommended values for this host.
+# pressure_max_cpu    = 80   # no default; PSI throttling disabled unless set
+# pressure_max_io     = 80   # no default; PSI throttling disabled unless set
+# pressure_max_memory = 50   # no default; PSI throttling disabled unless set
+
 [layers]
 # show_hashes = false   # default: false. When true, print each layer's repo, short git hash, and branch before `build`/`sync`, the same as passing --show-layers.
