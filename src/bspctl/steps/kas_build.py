@@ -792,3 +792,43 @@ def run_shell_capture(
         rc = proc.wait()
     log.step_ok(step, exit_code=rc)
     return rc
+
+
+def run_kas_subcommand(
+    cfg: BuildConfig,
+    log: RunLogger,
+    subcommand: str,
+    extra_args: list[str],
+    *,
+    kas_yaml: Path,
+    overlay_source: Path,
+    capture_to: Path | None = None,
+) -> int:
+    """Run a kas subcommand (e.g. ``dump``, ``lock``) with overlay assembly.
+
+    Sister to :func:`run_shell`/:func:`run_shell_capture`. Selects ``kas``
+    vs ``kas-container`` from ``cfg.host_mode`` and layers the overlay in via
+    the same colon-joined arg as :func:`run_build`. Used by ``bspctl dump``
+    (subcommand ``dump``) and the BYO path of ``bspctl lock`` (subcommand
+    ``lock``).
+
+    When ``capture_to`` is a path, the subprocess stdout is redirected to that
+    file so large ``kas dump`` output streams to disk instead of buffering in
+    memory; when None, stdout inherits the parent terminal. Returns the kas
+    exit code.
+    """
+    log.step_start("kas_subcommand", subcommand=subcommand, host_mode=cfg.host_mode)
+    kas_yaml_rel = _resolve_user_yaml(cfg, kas_yaml)
+    overlay_rel = materialize_overlay(cfg, overlay_source)
+    kas_arg = f"{kas_yaml_rel}:{overlay_rel}"
+    exe = "kas" if cfg.host_mode else "kas-container"
+    cmd = [exe, *_ccache_args(cfg), subcommand, kas_arg, *extra_args]
+    if capture_to is not None:
+        capture_to.parent.mkdir(parents=True, exist_ok=True)
+        with capture_to.open("wb") as fh:
+            proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg), stdout=fh)
+    else:
+        proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg))
+    rc = proc.returncode
+    log.step_ok("kas_subcommand", exit_code=rc)
+    return rc
