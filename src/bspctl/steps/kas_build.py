@@ -674,6 +674,24 @@ def _build_env(cfg: BuildConfig, python_executable: Path | None = None) -> dict[
     passthrough.setdefault("PATH", os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"))
     passthrough.setdefault("HOME", os.environ.get("HOME", "/tmp"))
     passthrough.setdefault("NPROC", str(os.cpu_count() or 16))
+    # Cache dirs: config value is a fallback; a live env var wins via setdefault.
+    if cfg.dl_dir is not None:
+        passthrough.setdefault("DL_DIR", cfg.dl_dir)
+    if cfg.sstate_dir is not None:
+        passthrough.setdefault("SSTATE_DIR", cfg.sstate_dir)
+    if cfg.sstate_mirrors is not None:
+        passthrough.setdefault("SSTATE_MIRRORS", cfg.sstate_mirrors)
+    # Scheduler and PSI thresholds: config.toml holds machine-calibrated values;
+    # only emit when set (empty dimension is disabled in the overlay via the
+    # os.environ.get(..., '') expression, so omitting the key is equivalent).
+    if cfg.scheduler is not None:
+        passthrough["BB_SCHEDULER"] = cfg.scheduler
+    if cfg.pressure_max_cpu is not None:
+        passthrough["BB_PRESSURE_MAX_CPU"] = str(cfg.pressure_max_cpu)
+    if cfg.pressure_max_io is not None:
+        passthrough["BB_PRESSURE_MAX_IO"] = str(cfg.pressure_max_io)
+    if cfg.pressure_max_memory is not None:
+        passthrough["BB_PRESSURE_MAX_MEMORY"] = str(cfg.pressure_max_memory)
     if cfg.is_meta_avocado:
         passthrough["KAS_WORK_DIR"] = str(cfg.workspace)
         passthrough["KAS_BUILD_DIR"] = str(cfg.bsp_root / "build")

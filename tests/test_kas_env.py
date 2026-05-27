@@ -72,3 +72,105 @@ def test_build_env_kas_work_dir_per_bsp(tmp_path: Path, monkeypatch: pytest.Monk
 
     assert env_ti["KAS_WORK_DIR"].endswith("/ti")
     assert env_nxp["KAS_WORK_DIR"].endswith("/nxp")
+
+
+# ---------------------------------------------------------------------------
+# PSI pressure throttle and scheduler emission tests
+# ---------------------------------------------------------------------------
+
+
+def _make_tuning_cfg(
+    workspace: Path,
+    *,
+    pressure_max_cpu: int | None = None,
+    pressure_max_io: int | None = None,
+    pressure_max_memory: int | None = None,
+    scheduler: str | None = None,
+    sstate_dir: str | None = None,
+    dl_dir: str | None = None,
+) -> BuildConfig:
+    return BuildConfig(
+        workspace=workspace,
+        bsp_family="nxp",  # type: ignore[arg-type]
+        machine="imx8mp-var-dart",
+        distro="fsl-imx-xwayland",
+        image="core-image-minimal",
+        manifest="imx-6.6.52-2.2.2.xml",
+        repo_url="https://example.invalid/repo.git",
+        repo_branch="scarthgap",
+        container_image="jetm/kas-build-env:latest",
+        pressure_max_cpu=pressure_max_cpu,
+        pressure_max_io=pressure_max_io,
+        pressure_max_memory=pressure_max_memory,
+        scheduler=scheduler,
+        sstate_dir=sstate_dir,
+        dl_dir=dl_dir,
+    )
+
+
+def test_all_pressure_keys_set_emits_all_three(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """All three BB_PRESSURE_MAX_* env vars are emitted as strings when all cfg fields are set."""
+    monkeypatch.delenv("BB_PRESSURE_MAX_CPU", raising=False)
+    monkeypatch.delenv("BB_PRESSURE_MAX_IO", raising=False)
+    monkeypatch.delenv("BB_PRESSURE_MAX_MEMORY", raising=False)
+    cfg = _make_tuning_cfg(tmp_path, pressure_max_cpu=60, pressure_max_io=45, pressure_max_memory=20)
+
+    env = _build_env(cfg)
+
+    assert env["BB_PRESSURE_MAX_CPU"] == "60"
+    assert env["BB_PRESSURE_MAX_IO"] == "45"
+    assert env["BB_PRESSURE_MAX_MEMORY"] == "20"
+
+
+def test_partial_pressure_keys_omit_unset_dimensions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only BB_PRESSURE_MAX_CPU is emitted when io and memory are None."""
+    monkeypatch.delenv("BB_PRESSURE_MAX_CPU", raising=False)
+    monkeypatch.delenv("BB_PRESSURE_MAX_IO", raising=False)
+    monkeypatch.delenv("BB_PRESSURE_MAX_MEMORY", raising=False)
+    cfg = _make_tuning_cfg(tmp_path, pressure_max_cpu=50)
+
+    env = _build_env(cfg)
+
+    assert env["BB_PRESSURE_MAX_CPU"] == "50"
+    assert "BB_PRESSURE_MAX_IO" not in env
+    assert "BB_PRESSURE_MAX_MEMORY" not in env
+
+
+def test_scheduler_emitted_when_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """BB_SCHEDULER is emitted with the configured value."""
+    monkeypatch.delenv("BB_SCHEDULER", raising=False)
+    cfg = _make_tuning_cfg(tmp_path, scheduler="completion")
+
+    env = _build_env(cfg)
+
+    assert env["BB_SCHEDULER"] == "completion"
+
+
+def test_scheduler_absent_when_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """BB_SCHEDULER is not injected when cfg.scheduler is None and env is unset."""
+    monkeypatch.delenv("BB_SCHEDULER", raising=False)
+    cfg = _make_tuning_cfg(tmp_path)
+
+    env = _build_env(cfg)
+
+    assert "BB_SCHEDULER" not in env
+
+
+def test_cfg_sstate_dir_used_when_env_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """cfg.sstate_dir reaches SSTATE_DIR when the env var is unset."""
+    monkeypatch.delenv("SSTATE_DIR", raising=False)
+    cfg = _make_tuning_cfg(tmp_path, sstate_dir="/data/sstate")
+
+    env = _build_env(cfg)
+
+    assert env["SSTATE_DIR"] == "/data/sstate"
+
+
+def test_env_sstate_dir_beats_cfg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pre-set SSTATE_DIR env var wins over cfg.sstate_dir."""
+    monkeypatch.setenv("SSTATE_DIR", "/env/sstate")
+    cfg = _make_tuning_cfg(tmp_path, sstate_dir="/cfg/sstate")
+
+    env = _build_env(cfg)
+
+    assert env["SSTATE_DIR"] == "/env/sstate"
