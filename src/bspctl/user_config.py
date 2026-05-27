@@ -4,6 +4,8 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+import tomli_w
+
 _STR_FIELDS = {
     "nxp_machine",
     "nxp_distro",
@@ -114,3 +116,168 @@ def load_user_config(path: Path | None = None) -> UserConfig:
                 values[field] = section_data[key]
 
     return UserConfig(**values)
+
+
+@dataclass(frozen=True)
+class _SettingSpec:
+    """Where a dotted setting key lives in the TOML tree and its declared type.
+
+    ``section`` is the table path (e.g. ``("defaults", "nxp")`` or ``("build",)``)
+    and ``key`` is the leaf key within that table. ``is_bool`` is derived from
+    :data:`_BOOL_FIELDS` so the dotted-key registry shares one source of truth
+    with :func:`load_user_config`.
+    """
+
+    section: tuple[str, ...]
+    key: str
+    is_bool: bool
+
+
+def _build_settings_schema() -> dict[str, _SettingSpec]:
+    """Derive the dotted-key registry from the existing key mappings.
+
+    Each ``(section, mapping)`` pair yields one dotted key per TOML key; the
+    type is looked up from the mapped dataclass field's membership in
+    ``_BOOL_FIELDS``. Keeping this derivation here means a new key added to a
+    mapping automatically gains a dotted setting with no second edit.
+    """
+    schema: dict[str, _SettingSpec] = {}
+    table_specs = (
+        (("defaults", "nxp"), _NXP_KEYS),
+        (("defaults", "ti"), _TI_KEYS),
+        (("build",), _BUILD_KEYS),
+        (("layers",), _LAYERS_KEYS),
+    )
+    for section, mapping in table_specs:
+        for key, field in mapping.items():
+            dotted = ".".join((*section, key))
+            schema[dotted] = _SettingSpec(section=section, key=key, is_bool=field in _BOOL_FIELDS)
+    return schema
+
+
+SETTINGS_SCHEMA: dict[str, _SettingSpec] = _build_settings_schema()
+
+_TRUE_LITERALS = {"true", "1"}
+_FALSE_LITERALS = {"false", "0"}
+
+
+def _config_path(path: Path | None) -> Path:
+    if path is None:
+        return Path.home() / ".config" / "bspctl" / "config.toml"
+    return path
+
+
+def _require_known(key: str) -> _SettingSpec:
+    spec = SETTINGS_SCHEMA.get(key)
+    if spec is None:
+        raise ValueError(f"unrecognized setting key: {key!r}")
+    return spec
+
+
+def _coerce(spec: _SettingSpec, raw_value: str) -> str | bool:
+    if not spec.is_bool:
+        return raw_value
+    lowered = raw_value.strip().lower()
+    if lowered in _TRUE_LITERALS:
+        return True
+    if lowered in _FALSE_LITERALS:
+        return False
+    raise ValueError(f"value for boolean key must be one of true/false/1/0, got {raw_value!r}")
+
+
+def _load_raw(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    with path.open("rb") as f:
+        return tomllib.load(f)
+
+
+def _dump_raw(path: Path, data: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        tomli_w.dump(data, f)
+
+
+def get_setting(key: str, path: Path | None = None) -> str | bool | None:
+    """Return the current value of a recognized dotted ``key``.
+
+    Returns ``None`` when the key is recognized but absent from the config file
+    (or the file does not exist). Raises ``ValueError`` for an unrecognized key.
+    """
+    spec = _require_known(key)
+    data = _load_raw(_config_path(path))
+    table: object = data
+    for part in spec.section:
+        if not isinstance(table, dict):
+            return None
+        table = table.get(part, {})
+    if not isinstance(table, dict):
+        return None
+    return table.get(spec.key)
+
+
+def set_setting(key: str, raw_value: str, path: Path | None = None) -> None:
+    """Coerce and write a recognized dotted ``key`` to the config file.
+
+    Rejects an unrecognized key with ``ValueError`` before touching the file.
+    Boolean keys accept ``"true"``/``"false"``/``"1"``/``"0"`` (any other value
+    raises ``ValueError``). Creates the file and parent directory if absent and
+    preserves every other key already in the file.
+    """
+    spec = _require_known(key)
+    value = _coerce(spec, raw_value)
+    config_path = _config_path(path)
+    data = _load_raw(config_path)
+    table: dict[str, object] = data
+    for part in spec.section:
+        existing = table.get(part)
+        if not isinstance(existing, dict):
+            existing = {}
+            table[part] = existing
+        table = existing
+    table[spec.key] = value
+    _dump_raw(config_path, data)
+
+
+def unset_setting(key: str, path: Path | None = None) -> None:
+    """Remove a recognized dotted ``key`` from the config file.
+
+    Prunes any table left empty by the removal. Rejects an unrecognized key with
+    ``ValueError``. A no-op (no write) when the key or its containing tables are
+    already absent.
+    """
+    spec = _require_known(key)
+    config_path = _config_path(path)
+    if not config_path.exists():
+        return
+    data = _load_raw(config_path)
+
+    # Walk to the leaf table, recording the chain so emptied tables can be
+    # pruned bottom-up after the removal.
+    chain: list[tuple[dict[str, object], str]] = []
+    table: object = data
+    for part in spec.section:
+        if not isinstance(table, dict) or not isinstance(table.get(part), dict):
+            return
+        chain.append((table, part))
+        table = table[part]
+
+    if not isinstance(table, dict) or spec.key not in table:
+        return
+    del table[spec.key]
+
+    for parent, part in reversed(chain):
+        child = parent.get(part)
+        if isinstance(child, dict) and not child:
+            del parent[part]
+
+    _dump_raw(config_path, data)
+
+
+def list_settings(path: Path | None = None) -> dict[str, str | bool | None]:
+    """Return every recognized key mapped to its current value or ``None``.
+
+    Keys absent from the file (or when no file exists) map to ``None``. Order
+    follows :data:`SETTINGS_SCHEMA` insertion order.
+    """
+    return {key: get_setting(key, path) for key in SETTINGS_SCHEMA}
