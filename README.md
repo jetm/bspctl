@@ -258,6 +258,47 @@ Each `bspctl build` invocation creates `<bsp_root>/build/runs/<YYYYMMDD-HHMMSS>/
 | `du.tsv` | `<unix-ts>\t<bytes>` samples of `build/tmp/` every 30 s |
 | `diagnosis.txt` | Pre-flight diagnosis as plain text |
 
+### Workspace commands
+
+Three commands inspect and manage a workspace without running a build.
+
+`bspctl layers` prints each synced layer's git short-hash, branch, and version.
+It is read-only: no build, no sync, no workspace write. Run it after a `bspctl
+build` or `bspctl sync` has populated the layers; on an empty workspace it
+prints guidance to sync first.
+
+```text
+$ bspctl layers
+  bitbake               abc1234  (walnascar)  2.9.0
+  meta-arm              def5678  (master)
+  meta-freescale        111aaaa  (scarthgap)
+  meta-variscite-bsp    222bbbb  (scarthgap_V1.0)
+  poky                  333cccc  (scarthgap)
+```
+
+`bspctl for-all <cmd>` runs a shell command once in every discovered source
+repo, exporting `BSPCTL_REPO_NAME`, `BSPCTL_REPO_PATH`, and `BSPCTL_REPO_COMMIT`
+for each, mirroring the `kas for-all-repos` convention. It visits every repo
+even when one command fails and exits non-zero if any invocation did.
+
+```bash
+bspctl for-all 'git log --oneline -3'
+bspctl for-all 'git status --short'
+bspctl for-all 'grep -rl "my-recipe" . --include="*.bb"'
+```
+
+`bspctl settings` reads and writes `~/.config/bspctl/config.toml` from the CLI,
+so you can change persistent defaults without hand-editing TOML. The `list`,
+`get`, `set`, and `unset` subcommands operate over the recognized keys
+documented under [Config file](#config-file).
+
+```bash
+bspctl settings list
+bspctl settings get defaults.nxp.machine
+bspctl settings set defaults.nxp.machine imx95-var-dart
+bspctl settings unset defaults.nxp.machine
+```
+
 ## Build forms
 
 ```bash
@@ -382,6 +423,9 @@ bspctl shell -c "bitbake -e virtual/kernel | grep ^PREFERRED"
 bspctl shell --host                     # plain kas shell on the host (no Docker)
 bspctl gen-kas -o nxp/my-build.yml      # write topology YAML only
 bspctl clean                            # remove <bsp>/build/
+bspctl layers                           # show synced layer hashes, branches, versions
+bspctl for-all 'git status --short'     # run a shell command in every source repo
+bspctl settings list                    # show every config.toml key and its value
 ```
 
 ## Troubleshooting
@@ -404,51 +448,14 @@ bspctl clean                            # remove <bsp>/build/
 
 ## Roadmap
 
-Features are grouped into phases by value/complexity ratio. Phase 1 delivers
-standalone commands with minimal new code. Later phases build on earlier ones -
-`upgrade` depends on `diff`; `matrix` depends on a stable `build`.
+Features are grouped into phases by value/complexity ratio. Phase 1 (workspace
+visibility) has shipped. Later phases build on earlier ones - `upgrade` depends
+on `diff`; `matrix` depends on a stable `build`.
 
-### Phase 1 - Workspace visibility (quick wins)
+### Phase 1 - Workspace visibility (shipped)
 
-**`bspctl layers`**
-
-Show each layer's git short-hash, branch, and version without triggering a
-build. `--show-layers` exists during `build`, but there is no way to inspect
-layer state independently. Uses the existing `collect_layer_hashes()` function.
-
-```text
-$ bspctl layers
-  bitbake               abc1234  (walnascar)  2.9.0
-  meta-arm              def5678  (master)
-  meta-freescale        111aaaa  (scarthgap)
-  meta-variscite-bsp    222bbbb  (scarthgap_V1.0)
-  poky                  333cccc  (scarthgap)
-```
-
-**`bspctl for-all <cmd>`**
-
-Run a shell command in every `sources/` layer directory, BSP-family-aware
-(NXP, TI, bbsetup, generic). Exports `BSPCTL_REPO_NAME`, `BSPCTL_REPO_PATH`,
-and `BSPCTL_REPO_COMMIT` per layer, mirroring the `kas for-all-repos`
-convention.
-
-```bash
-bspctl for-all 'git log --oneline -3'
-bspctl for-all 'git status --short'
-bspctl for-all 'grep -rl "my-recipe" . --include="*.bb"'
-```
-
-**`bspctl settings`**
-
-CLI interface for `~/.config/bspctl/config.toml`. Read and write persistent
-defaults without hand-editing TOML.
-
-```bash
-bspctl settings list
-bspctl settings get defaults.nxp.machine
-bspctl settings set defaults.nxp.machine imx95-var-dart
-bspctl settings unset defaults.nxp.machine
-```
+Delivered: `bspctl layers`, `bspctl for-all`, and `bspctl settings`. See
+[Workspace commands](#workspace-commands) for usage.
 
 ### Phase 2 - Version management
 
