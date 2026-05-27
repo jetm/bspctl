@@ -17,12 +17,15 @@ import pytest
 
 from bspctl.config import BuildConfig
 from bspctl.diagnostics import (
+    _DOCKER_CHECKS,
     _REQUIRED_TOOLS_BY_FAMILY,
+    SHARED_CHECKS,
     Severity,
     Status,
     check_bbsetup_config_sources,
     check_container_os,
     check_host_tools,
+    check_psi_support,
     run_all,
 )
 
@@ -269,3 +272,78 @@ def test_run_all_bbsetup_host_mode_filters_docker_but_keeps_bbsetup_checks(tmp_p
     names = {r.name for r in run_all(cfg)}
     assert "docker-daemon" not in names
     assert "bbsetup-init" in names
+
+
+# ---------------------------------------------------------------------------
+# PSI support check
+# ---------------------------------------------------------------------------
+
+
+def _psi_cfg(**kwargs) -> BuildConfig:
+    """BuildConfig with tuning fields for PSI tests."""
+    return BuildConfig(
+        workspace=Path("/tmp/fake-workspace"),
+        bsp_family="nxp",
+        machine="imx8mp-var-dart",
+        distro="fsl-imx-xwayland",
+        image="core-image-minimal",
+        manifest="imx-6.6.52-2.2.2.xml",
+        repo_url="https://example.invalid/none.git",
+        repo_branch="scarthgap",
+        container_image="jetm/kas-build-env:latest",
+        **kwargs,
+    )
+
+
+def test_psi_available_and_configured_is_pass(monkeypatch) -> None:
+    """PSI readable + at least one threshold set yields PASS/INFO naming the values."""
+    monkeypatch.setattr("bspctl.diagnostics._read_psi_avg10", lambda _r: 12.5)
+    cfg = _psi_cfg(pressure_max_cpu=60, pressure_max_io=45, pressure_max_memory=20)
+
+    result = check_psi_support(cfg)
+
+    assert result.status == Status.PASS
+    assert result.severity == Severity.INFO
+    assert "cpu=60" in result.message
+
+
+def test_psi_available_unconfigured_is_fail_info(monkeypatch) -> None:
+    """PSI readable but no thresholds set yields FAIL/INFO with calibrate hint."""
+    monkeypatch.setattr("bspctl.diagnostics._read_psi_avg10", lambda _r: 0.0)
+    cfg = _psi_cfg()
+
+    result = check_psi_support(cfg)
+
+    assert result.status == Status.FAIL
+    assert result.severity == Severity.INFO
+    assert result.fix_hint is not None
+    assert "~/.config/bspctl/config.toml" in result.fix_hint
+    assert "--psi-calibrate" in result.fix_hint
+
+
+def test_psi_unavailable_unconfigured_is_skip(monkeypatch) -> None:
+    """PSI unreadable + no thresholds set yields SKIP/INFO (silent)."""
+    monkeypatch.setattr("bspctl.diagnostics._read_psi_avg10", lambda _r: None)
+    cfg = _psi_cfg()
+
+    result = check_psi_support(cfg)
+
+    assert result.status == Status.SKIP
+    assert result.severity == Severity.INFO
+
+
+def test_psi_unavailable_configured_is_fail_warn(monkeypatch) -> None:
+    """PSI unreadable + threshold set yields FAIL/WARN (misconfigured host)."""
+    monkeypatch.setattr("bspctl.diagnostics._read_psi_avg10", lambda _r: None)
+    cfg = _psi_cfg(pressure_max_cpu=60)
+
+    result = check_psi_support(cfg)
+
+    assert result.status == Status.FAIL
+    assert result.severity == Severity.WARN
+
+
+def test_check_psi_support_in_shared_checks_not_docker_checks() -> None:
+    """check_psi_support is in SHARED_CHECKS and absent from _DOCKER_CHECKS."""
+    assert check_psi_support in SHARED_CHECKS
+    assert check_psi_support not in _DOCKER_CHECKS

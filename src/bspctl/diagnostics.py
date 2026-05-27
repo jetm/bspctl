@@ -692,6 +692,65 @@ def check_bbsetup_config_sources(cfg: BuildConfig) -> CheckResult:
 
 CheckFunc = Callable[[BuildConfig], CheckResult]
 
+
+def _read_psi_avg10(resource: str) -> float | None:
+    """Return the ``some avg10=`` value from ``/proc/pressure/<resource>``.
+
+    Returns None when the file is absent, unreadable, or the expected
+    field is missing - covers kernels without PSI support and containers
+    that lack access to the host procfs.
+    """
+    try:
+        text = Path(f"/proc/pressure/{resource}").read_text()
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("some "):
+            for field in line.split():
+                if field.startswith("avg10="):
+                    try:
+                        return float(field.split("=", 1)[1])
+                    except ValueError:
+                        return None
+    return None
+
+
+def check_psi_support(cfg: BuildConfig) -> CheckResult:
+    """Check whether PSI throttling is available and configured."""
+    name = "psi_support"
+    available = _read_psi_avg10("cpu") is not None
+    any_set = any(v is not None for v in (cfg.pressure_max_cpu, cfg.pressure_max_io, cfg.pressure_max_memory))
+
+    if not available and any_set:
+        return _fail(
+            name,
+            Severity.WARN,
+            "PSI throttling configured in config.toml but kernel lacks /proc/pressure support",
+        )
+    if not available:
+        return _skip(name, Severity.INFO, "PSI not available on this kernel; throttling disabled")
+    if not any_set:
+        return _fail(
+            name,
+            Severity.INFO,
+            "PSI available but no thresholds set in config.toml",
+            fix_hint=(
+                "Run `bspctl doctor --psi-calibrate` during a build to measure peak pressure "
+                "and add pressure_max_cpu/io/memory to ~/.config/bspctl/config.toml"
+            ),
+        )
+    active = ", ".join(
+        f"{k}={v}"
+        for k, v in (
+            ("cpu", cfg.pressure_max_cpu),
+            ("io", cfg.pressure_max_io),
+            ("memory", cfg.pressure_max_memory),
+        )
+        if v is not None
+    )
+    return _ok(name, Severity.INFO, f"PSI throttling active: {active}")
+
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #
@@ -699,6 +758,9 @@ CheckFunc = Callable[[BuildConfig], CheckResult]
 # image, or anything else that does not apply under ``cfg.host_mode``
 # MUST also be added to ``_DOCKER_CHECKS`` below so host-mode runs of
 # :func:`run_all` keep skipping it.
+#
+# NOTE: check_psi_support reads host /proc/pressure/ - do NOT add it
+# to _DOCKER_CHECKS; it must run in both container and host mode.
 SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_host_tools,
     check_docker_daemon,
@@ -713,6 +775,7 @@ SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_nproc,
     check_bitbake_override,
     check_bitbake_locks,
+    check_psi_support,
 )
 
 # Docker-dependent checks from ``SHARED_CHECKS``. Filtered out of
