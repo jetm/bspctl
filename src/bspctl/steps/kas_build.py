@@ -818,17 +818,31 @@ def run_kas_subcommand(
     exit code.
     """
     log.step_start("kas_subcommand", subcommand=subcommand, host_mode=cfg.host_mode)
-    kas_yaml_rel = _resolve_user_yaml(cfg, kas_yaml)
-    overlay_rel = materialize_overlay(cfg, overlay_source)
-    kas_arg = f"{kas_yaml_rel}:{overlay_rel}"
+    if cfg.is_meta_avocado:
+        _setup_meta_avocado_build_dir(cfg)
+        overlay_rel = materialize_overlay(cfg, overlay_source)
+        wrapper = _write_meta_avocado_wrapper(cfg, kas_yaml)
+        dump = _run_kas_dump(cfg, wrapper, overlay_rel)
+        kas_arg = str(dump)
+    else:
+        kas_yaml_rel = _resolve_user_yaml(cfg, kas_yaml)
+        overlay_rel = materialize_overlay(cfg, overlay_source)
+        kas_arg = f"{kas_yaml_rel}:{overlay_rel}"
     exe = "kas" if cfg.host_mode else "kas-container"
     cmd = [exe, *_ccache_args(cfg), subcommand, kas_arg, *extra_args]
-    if capture_to is not None:
-        capture_to.parent.mkdir(parents=True, exist_ok=True)
-        with capture_to.open("wb") as fh:
-            proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg), stdout=fh)
-    else:
-        proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg))
+    try:
+        if capture_to is not None:
+            capture_to.parent.mkdir(parents=True, exist_ok=True)
+            with capture_to.open("wb") as fh:
+                proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg), stdout=fh)
+        else:
+            proc = subprocess.run(cmd, cwd=cfg.bsp_root, env=_build_env(cfg))
+    except FileNotFoundError:
+        log.step_fail("kas_subcommand", reason=f"{exe} not found")
+        raise
     rc = proc.returncode
-    log.step_ok("kas_subcommand", exit_code=rc)
+    if rc != 0:
+        log.step_fail("kas_subcommand", reason=f"{subcommand} exited {rc}")
+    else:
+        log.step_ok("kas_subcommand", exit_code=rc)
     return rc

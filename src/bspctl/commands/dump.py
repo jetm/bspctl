@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -66,15 +67,21 @@ def dump(
         workspace=ws, bsp_family=family, manifest=manifest, kas_yaml=kas_yaml, user_config=_state._USER_CONFIG
     )
     overlay_source = _overlay_for(bsp)
-    cfg.runs_dir.mkdir(parents=True, exist_ok=True)
-    with RunLogger(runs_dir=cfg.runs_dir) as log:
-        rc = run_kas_subcommand(
-            cfg,
-            log,
-            "dump",
-            [],
-            kas_yaml=cfg.kas_yaml,
-            overlay_source=overlay_source,
-            capture_to=output,
-        )
+    # dump is not a build: use an ephemeral run dir so it does not leave a
+    # bogus build/runs/<ts>/ entry that `report`/`triage` would surface.
+    with tempfile.TemporaryDirectory() as runs_tmp, RunLogger(runs_dir=Path(runs_tmp)) as log:
+        try:
+            rc = run_kas_subcommand(
+                cfg,
+                log,
+                "dump",
+                [],
+                kas_yaml=cfg.kas_yaml,
+                overlay_source=overlay_source,
+                capture_to=output,
+            )
+        except FileNotFoundError:
+            exe = "kas" if cfg.host_mode else "kas-container"
+            console.print(f"[red]{exe} not found[/]; pass --host to use plain kas, or install kas-container")
+            raise typer.Exit(code=2) from None
     raise typer.Exit(code=rc)

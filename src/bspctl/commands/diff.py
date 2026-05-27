@@ -33,11 +33,11 @@ def diff(
 ) -> None:
     """Compare two versions and report per-layer SHA changes.
 
-    For NXP the two arguments are SHA-pinned ``repo`` manifest XMLs; each
-    layer's old and new SHA are diffed and rendered with a best-effort
-    commit count and a changed/unchanged marker. For BYO and bbsetup the
-    arguments are kas config files and the command delegates to ``kas
-    diff`` (``kas-container diff`` outside host mode).
+    When both arguments are ``repo`` manifest XMLs (``.xml``), each layer's
+    old and new SHA are diffed and rendered with a best-effort commit count
+    and a changed/unchanged marker. Otherwise the arguments are treated as
+    kas config files (BYO/bbsetup) and the command delegates to ``kas diff``
+    (``kas-container diff`` outside host mode).
     """
     family, _bsp = _dispatch_bsp(manifest)
     ws = _resolve_workspace(workspace, family=family)
@@ -48,7 +48,7 @@ def diff(
         user_config=_state._USER_CONFIG,
     )
 
-    if family == "nxp":
+    if old.suffix == ".xml" and new.suffix == ".xml":
         diffs = diff_manifests(old, new, checkout_root=cfg.bsp_root / "sources")
         for d in diffs:
             old_col = d.old_sha[:8] if d.old_sha is not None else "-"
@@ -59,5 +59,5 @@ def diff(
         raise typer.Exit(code=0)
 
     exe = "kas" if cfg.host_mode else "kas-container"
-    proc = subprocess.run([exe, "diff", str(old), str(new)], cwd=cfg.bsp_root)
+    proc = subprocess.run([exe, "diff", str(old), str(new)], cwd=ws)
     raise typer.Exit(code=proc.returncode)

@@ -125,6 +125,39 @@ def test_byo_invokes_kas_diff_with_both_configs(
 
 
 @pytest.mark.unit
+def test_yaml_inputs_reach_kas_diff_without_manifest(
+    runner: _CliRunner, nxp_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`.yml` arguments delegate to ``kas diff`` even when family defaults to NXP.
+
+    Dispatch keys on the input file type, not the workspace family: two kas
+    configs must reach ``kas diff`` rather than the manifest-XML path, even
+    with no ``--manifest`` (which defaults the family to NXP).
+    """
+    captured: dict[str, list[str]] = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = list(argv)
+        return _Completed(0)
+
+    monkeypatch.setattr(diff_module.subprocess, "run", fake_run)
+    # diff_manifests must NOT be reached for .yml inputs.
+    monkeypatch.setattr(
+        diff_module,
+        "diff_manifests",
+        lambda *a, **k: pytest.fail("diff_manifests called for .yml inputs"),
+    )
+
+    result = runner.invoke(app, ["diff", "a.yml", "b.yml", "--workspace", str(nxp_workspace)])
+
+    assert result.exit_code == 0, result.output
+    argv = captured["argv"]
+    assert argv[1] == "diff"
+    assert "a.yml" in argv
+    assert "b.yml" in argv
+
+
+@pytest.mark.unit
 def test_byo_nonzero_return_propagates(runner: _CliRunner, ti_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A non-zero ``kas diff`` return propagates to a non-zero exit."""
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -69,7 +70,7 @@ def lock(
     )
 
     if bsp is not None and bsp.manifest_kind == "repo-xml":
-        out = output if output is not None else cfg.bsp_root / "pinned-manifest.xml"
+        out = (output if output is not None else cfg.bsp_root / "pinned-manifest.xml").resolve()
         out.parent.mkdir(parents=True, exist_ok=True)
         proc = subprocess.run(
             ["repo", "manifest", "-r", "-o", str(out)],
@@ -78,14 +79,20 @@ def lock(
         raise typer.Exit(code=proc.returncode)
 
     overlay_source = _overlay_for(bsp)
-    cfg.runs_dir.mkdir(parents=True, exist_ok=True)
-    with RunLogger(runs_dir=cfg.runs_dir) as log:
-        rc = run_kas_subcommand(
-            cfg,
-            log,
-            "lock",
-            [],
-            kas_yaml=cfg.kas_yaml,
-            overlay_source=overlay_source,
-        )
+    # lock is not a build: use an ephemeral run dir so it does not leave a
+    # bogus build/runs/<ts>/ entry that `report`/`triage` would surface.
+    with tempfile.TemporaryDirectory() as runs_tmp, RunLogger(runs_dir=Path(runs_tmp)) as log:
+        try:
+            rc = run_kas_subcommand(
+                cfg,
+                log,
+                "lock",
+                [],
+                kas_yaml=cfg.kas_yaml,
+                overlay_source=overlay_source,
+            )
+        except FileNotFoundError:
+            exe = "kas" if cfg.host_mode else "kas-container"
+            console.print(f"[red]{exe} not found[/]; pass --host to use plain kas, or install kas-container")
+            raise typer.Exit(code=2) from None
     raise typer.Exit(code=rc)

@@ -56,8 +56,9 @@ def report(
         runs_dirs = [
             (ws / "nxp" / "build" / "runs", "nxp"),
             (ws / "ti" / "build" / "runs", "ti"),
+            (ws / "build" / "runs", "generic"),
         ]
-        not_found_label = "nxp/build/runs/ or ti/build/runs/"
+        not_found_label = "nxp/build/runs/, ti/build/runs/, or build/runs/"
         ws_for_cfg = ws
         family = "nxp"  # provisional default; overwritten by the resolved run's label below
 

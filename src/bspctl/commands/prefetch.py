@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import Annotated
 
@@ -71,7 +72,7 @@ def prefetch(
             cfg,
             log,
             [],
-            command=f"bitbake --runall=fetch {cfg.image}",
+            command=f"bitbake --runall=fetch {shlex.quote(cfg.image)}",
             kas_yaml=cfg.kas_yaml,
             overlay_source=overlay_source,
         )
