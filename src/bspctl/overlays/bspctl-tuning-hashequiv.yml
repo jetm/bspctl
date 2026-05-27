@@ -1,0 +1,27 @@
+# Hash equivalence opt-in overlay.
+#
+# WARNING: enabling this overlay invalidates your existing sstate cache on
+# the first run. Bitbake rebuilds all tasks whose signatures no longer match
+# under OEEquivHash. Only add this overlay to a kas invocation after a full
+# clean build or when you accept the one-time rebuild cost.
+#
+# Usage: add this file to the `includes:` list of your kas YAML after the
+# standard tuning overlay. It is intentionally never auto-loaded by bspctl.
+#
+# What it does: OEEquivHash lets bitbake treat tasks as equivalent when their
+# outputs match, even if their input hashes differ (e.g. after a minor recipe
+# change). Combined with BB_HASHSERVE_UPSTREAM, tasks that already ran on
+# other machines can reuse their sstate via the shared hash equivalence server,
+# skipping the rebuild entirely.
+
+header:
+  version: 21
+
+local_conf_header:
+  bspctl-tuning-hashequiv: |
+    # Switch the signature handler to equivalence-aware mode.
+    BB_SIGNATURE_HANDLER = "OEEquivHash"
+    # Run a local hash equivalence server and connect it to the upstream
+    # Yocto Project server for cross-machine reuse.
+    BB_HASHSERVE = "auto"
+    BB_HASHSERVE_UPSTREAM = "wss://hashserv.yoctoproject.org/ws"
