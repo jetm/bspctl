@@ -59,6 +59,7 @@ def report(
         ]
         not_found_label = "nxp/build/runs/ or ti/build/runs/"
         ws_for_cfg = ws
+        family = "nxp"  # provisional default; overwritten by the resolved run's label below
 
     found = _find_run(runs_dirs, run_id)
     if found is None:

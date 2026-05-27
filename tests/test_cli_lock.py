@@ -86,9 +86,7 @@ def test_nxp_path_invokes_repo_manifest_r(
 
 
 @pytest.mark.unit
-def test_nxp_default_output_path(
-    runner: _CliRunner, nxp_workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_nxp_default_output_path(runner: _CliRunner, nxp_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Without ``--output`` the pinned manifest targets cfg.bsp_root / pinned-manifest.xml."""
     from bspctl.config import resolve
 
@@ -112,9 +110,7 @@ def test_nxp_default_output_path(
 
 
 @pytest.mark.unit
-def test_nxp_output_override(
-    runner: _CliRunner, nxp_workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_nxp_output_override(runner: _CliRunner, nxp_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``--output pinned.xml`` makes the NXP path target that path instead of the default."""
     from bspctl.config import resolve
 
@@ -179,9 +175,7 @@ def test_byo_path_calls_run_kas_subcommand_lock(
 
 
 @pytest.mark.unit
-def test_byo_nonzero_return_propagates(
-    runner: _CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_byo_nonzero_return_propagates(runner: _CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A non-zero run_kas_subcommand return propagates to a non-zero command exit."""
     yaml_path = _byo_yaml(tmp_path)
 

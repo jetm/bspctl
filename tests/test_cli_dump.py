@@ -92,9 +92,7 @@ def test_dump_output_passes_capture_to_path(
     """``--output resolved.yml`` passes ``capture_to`` equal to that path."""
     stub = _Stub(rc=0)
     monkeypatch.setattr(dump_module, "run_kas_subcommand", stub)
-    result = runner.invoke(
-        app, ["dump", "--workspace", str(nxp_workspace), "--output", "resolved.yml"]
-    )
+    result = runner.invoke(app, ["dump", "--workspace", str(nxp_workspace), "--output", "resolved.yml"])
     assert result.exit_code == 0, result.output
     assert len(stub.calls) == 1
     capture_to = stub.calls[0]["capture_to"]
