@@ -1,0 +1,111 @@
+# bspctl build
+
+Run the full BSP build pipeline: doctor checks, source sync, kas YAML generation, and kas-container build.
+
+## Synopsis
+
+```text
+bspctl build [KAS_YAML] [OPTIONS]
+```
+
+## Forms
+
+### BYO (bring your own YAML)
+
+Pass a kas YAML directly. Sync, setup-env, and gen-kas are skipped; bspctl applies the static tuning overlay and runs kas-container.
+
+```bash
+bspctl build my-board.yml
+bspctl build kas/main.yml:kas/overlay.yml    # colon-separated overlay stack
+```
+
+### Manifest-driven (NXP / TI)
+
+Supply a manifest filename. bspctl runs `repo init+sync` (NXP) or `oe-layertool populate` (TI), then generates the kas YAML, applies the overlay, and builds.
+
+```bash
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart
+bspctl build -f processor-sdk-10.1.0.8-config_var1.txt -m am62x-var-som
+```
+
+### bitbake-setup workspace
+
+When no YAML or manifest is given and the CWD (or `--workspace`) is a bitbake-setup workspace, bspctl auto-detects it and translates `config/config-upstream.json` into a kas YAML before building.
+
+```bash
+cd ~/bsp/my-bbsetup-ws && bspctl build
+bspctl build -m imx8mp-var-dart    # machine override in bbsetup workspace
+```
+
+## Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--machine` | `-m` | Target machine (e.g. `imx8mp-var-dart`, `am62x-var-som`) |
+| `--distro` | `-d` | Distro (e.g. `fsl-imx-xwayland`, `arago`) |
+| `--image` | `-i` | Image target (e.g. `core-image-minimal`, `var-thin-image`) |
+| `--manifest` | `-f` | Manifest filename (NXP `.xml` or TI `.txt`) |
+| `--branch` | `-b` | Branch override (inferred from manifest when omitted) |
+| `--skip-sync` | | Skip repo/layertool sync step |
+| `--dry-run` | | Regenerate YAML and exit before invoking kas-container |
+| `--skip-doctor` | | Skip pre-flight checks (not recommended) |
+| `--clean` | | Remove `<bsp>/build/` before running (forces from-scratch build) |
+| `--host` | | Bypass kas-container, run plain `kas build` on the host |
+| `--show-layers` | | Print layer git hashes before the build starts |
+| `--workspace` | `-w` | Workspace root override |
+
+## Examples
+
+```bash
+# Minimal NXP build (machine required, distro/image from defaults or config.toml)
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart
+
+# NXP build with explicit image, skip sync (sources already present)
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart -i var-thin-image --skip-sync
+
+# NXP from-scratch build (wipe build/ first)
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart --clean
+
+# Dry-run: regenerate YAML and show what would run, don't invoke kas-container
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart --dry-run
+
+# TI Sitara build
+bspctl build -f processor-sdk-10.1.0.8-config_var1.txt -m am62x-var-som
+
+# BYO: build a hand-crafted kas YAML without any sync
+bspctl build my-project.yml
+
+# BYO with colon-separated overlay
+bspctl build kas/main.yml:kas/sstate-mirror.yml
+
+# Show layer hashes before building (confirm sources are what you expect)
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart --show-layers
+
+# Host mode (skip kas-container, run kas directly - requires host Yocto prereqs)
+bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart --host
+```
+
+## What happens
+
+1. **Doctor** - runs pre-flight checks unless `--skip-doctor` or `build.doctor = false` in config.toml
+2. **Sync** (manifest-driven only) - `repo init+sync` for NXP, `oe-layertool populate` for TI; skipped if already up to date or `--skip-sync`
+3. **setup-env** (manifest-driven only) - runs `var-setup-release.sh` or local.conf fixup; skipped if `bblayers.conf` already present
+4. **bitbake-override** - swaps the BSP-bundled bitbake for a local upstream checkout
+5. **gen-kas** (manifest-driven only) - regenerates `kas-<bsp>.yml` from the manifest
+6. **kas-container build** - invokes `kas-container build <kas_yaml>:<overlay>` (or `kas build` in host mode)
+
+Run telemetry is written to `<bsp_root>/build/runs/<YYYYMMDD-HHMMSS>/`.
+
+## On failure
+
+```bash
+bspctl triage                        # inspect the most recent failed run
+bspctl triage 20260601-143022        # inspect a specific run
+```
+
+## See also
+
+- [sync.md](sync.md) - sync sources without building
+- [doctor.md](doctor.md) - run pre-flight checks standalone
+- [triage.md](triage.md) - post-mortem a failed build
+- [configuration.md](configuration.md) - env vars and config.toml defaults
