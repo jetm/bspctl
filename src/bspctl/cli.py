@@ -9,6 +9,7 @@ import bspctl.commands.doctor  # noqa: F401
 import bspctl.commands.dump  # noqa: F401
 import bspctl.commands.for_all  # noqa: F401
 import bspctl.commands.gen_kas  # noqa: F401
+import bspctl.commands.hashserv  # noqa: F401
 import bspctl.commands.layers  # noqa: F401
 import bspctl.commands.lock  # noqa: F401
 import bspctl.commands.log  # noqa: F401
