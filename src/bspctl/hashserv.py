@@ -188,6 +188,53 @@ def ensure_running(bsp_root: Path) -> str | None:
         return f"ws://localhost:{port}"
 
 
+def stop(bsp_root: Path) -> bool:
+    """Stop the workspace daemon and clean PID/port state files.
+
+    Returns False (no-op) when no PID file is recorded - the daemon was
+    never started, or its state has already been cleaned up. Returns True
+    in every other case, even when the recorded PID was already dead by
+    the time we tried to signal it: a missing process is a successful
+    stop, not a failure.
+
+    The SQLite database under ``<state_dir>/hashserv.db`` is deliberately
+    preserved across stop/start cycles. The whole reason to run a
+    persistent daemon is to keep the accumulated hash equivalence cache;
+    wiping the DB here would defeat that. Workspace teardown
+    (``bspctl clean --all``) is the one path that removes the DB.
+    """
+    pid = _read_pid(bsp_root)
+    if pid is None:
+        return False
+
+    state_dir = _state_dir(bsp_root)
+    pid_file = state_dir / _PID_FILENAME
+    port_file = state_dir / _PORT_FILENAME
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+
+    deadline = time.monotonic() + _TERM_GRACE_SECONDS
+    while is_running(bsp_root) and time.monotonic() < deadline:
+        time.sleep(0.1)
+
+    if is_running(bsp_root):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        kill_deadline = time.monotonic() + 1.0
+        while is_running(bsp_root) and time.monotonic() < kill_deadline:
+            time.sleep(0.1)
+
+    pid_file.unlink(missing_ok=True)
+    port_file.unlink(missing_ok=True)
+    return True
+
+
+
 def _abort_startup(proc: subprocess.Popen[bytes], state_dir: Path) -> None:
     """Tear down a failed daemon spawn.
 

@@ -379,3 +379,156 @@ def test_ensure_running_handles_immediate_exit(
     # file exists but is empty in tests (the mock process doesn't write to it).
     stderr_file = tmp_path / ".bspctl" / "hashserv.stderr"
     assert stderr_file.exists()
+
+
+def test_stop_no_pid_file_returns_false(tmp_path: Path) -> None:
+    """No PID file under .bspctl/ - stop is a no-op and returns False."""
+    from bspctl.hashserv import stop
+
+    assert stop(tmp_path) is False
+
+
+def test_stop_signals_alive_pid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live daemon dies on SIGTERM; PID + port files removed, DB stays."""
+    import signal as signal_mod
+
+    from bspctl import hashserv as hashserv_mod
+
+    state_dir = tmp_path / ".bspctl"
+    state_dir.mkdir(parents=True)
+    pid_file = state_dir / "hashserv.pid"
+    pid_file.write_text("12345\n")
+    port_file = state_dir / "hashserv.port"
+    port_file.write_text("50000\n")
+    db_file = state_dir / "hashserv.db"
+    db_file.write_bytes(b"sqlite-cache-content")
+
+    signals_sent: list[tuple[int, int]] = []
+
+    def _fake_kill(pid: int, sig: int) -> None:
+        signals_sent.append((pid, sig))
+
+    monkeypatch.setattr(hashserv_mod.os, "kill", _fake_kill)
+
+    # Daemon "dies" the first time stop polls is_running after SIGTERM.
+    is_running_calls = {"n": 0}
+
+    def _fake_is_running(_root: Path) -> bool:
+        is_running_calls["n"] += 1
+        return False
+
+    monkeypatch.setattr(hashserv_mod, "is_running", _fake_is_running)
+    monkeypatch.setattr(hashserv_mod.time, "sleep", lambda _s: None)
+
+    assert hashserv_mod.stop(tmp_path) is True
+    assert (12345, signal_mod.SIGTERM) in signals_sent
+    assert not any(sig == signal_mod.SIGKILL for _pid, sig in signals_sent)
+    assert not pid_file.exists()
+    assert not port_file.exists()
+    assert db_file.exists()
+    assert db_file.read_bytes() == b"sqlite-cache-content"
+
+
+def test_stop_preserves_db_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The SQLite database survives stop() so cache accumulates across cycles."""
+    from bspctl import hashserv as hashserv_mod
+
+    state_dir = tmp_path / ".bspctl"
+    state_dir.mkdir(parents=True)
+    (state_dir / "hashserv.pid").write_text("12345\n")
+    (state_dir / "hashserv.port").write_text("50000\n")
+    db_file = state_dir / "hashserv.db"
+    db_payload = b"\x00\x01\x02SQLite cache bytes - must survive stop()"
+    db_file.write_bytes(db_payload)
+
+    monkeypatch.setattr(hashserv_mod.os, "kill", lambda _pid, _sig: None)
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: False)
+    monkeypatch.setattr(hashserv_mod.time, "sleep", lambda _s: None)
+
+    result = hashserv_mod.stop(tmp_path)
+
+    assert result is True
+    assert db_file.exists()
+    assert db_file.read_bytes() == db_payload
+
+
+def test_stop_force_kills_after_grace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When SIGTERM grace lapses with the daemon still alive, SIGKILL fires."""
+    import signal as signal_mod
+
+    from bspctl import hashserv as hashserv_mod
+
+    state_dir = tmp_path / ".bspctl"
+    state_dir.mkdir(parents=True)
+    (state_dir / "hashserv.pid").write_text("12345\n")
+    (state_dir / "hashserv.port").write_text("50000\n")
+
+    signals_sent: list[int] = []
+
+    def _fake_kill(_pid: int, sig: int) -> None:
+        signals_sent.append(sig)
+
+    monkeypatch.setattr(hashserv_mod.os, "kill", _fake_kill)
+    # Daemon never dies, so the grace polls all see True and SIGKILL fires.
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: True)
+    # Without this the test would block for _TERM_GRACE_SECONDS (5s) of real
+    # sleep before the SIGKILL fallback triggers.
+    monkeypatch.setattr(hashserv_mod.time, "sleep", lambda _s: None)
+
+    # Drive monotonic forward fast so the grace deadline trips immediately.
+    fake_clock = {"now": 0.0}
+
+    def _fake_monotonic() -> float:
+        current = fake_clock["now"]
+        fake_clock["now"] += 1.0
+        return current
+
+    monkeypatch.setattr(hashserv_mod.time, "monotonic", _fake_monotonic)
+
+    result = hashserv_mod.stop(tmp_path)
+
+    assert result is True
+    assert signal_mod.SIGTERM in signals_sent
+    assert signal_mod.SIGKILL in signals_sent
+    # SIGTERM must precede SIGKILL - the graceful-then-force ordering matters.
+    assert signals_sent.index(signal_mod.SIGTERM) < signals_sent.index(signal_mod.SIGKILL)
+
+
+def test_stop_handles_already_dead_pid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Recorded PID is already dead - state files still cleaned, returns True."""
+    from bspctl import hashserv as hashserv_mod
+
+    state_dir = tmp_path / ".bspctl"
+    state_dir.mkdir(parents=True)
+    pid_file = state_dir / "hashserv.pid"
+    pid_file.write_text("12345\n")
+    port_file = state_dir / "hashserv.port"
+    port_file.write_text("50000\n")
+    db_file = state_dir / "hashserv.db"
+    db_file.write_bytes(b"cache")
+
+    def _kill_raises(_pid: int, _sig: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr(hashserv_mod.os, "kill", _kill_raises)
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: False)
+    monkeypatch.setattr(hashserv_mod.time, "sleep", lambda _s: None)
+
+    result = hashserv_mod.stop(tmp_path)
+
+    assert result is True
+    assert not pid_file.exists()
+    assert not port_file.exists()
+    assert db_file.exists()
