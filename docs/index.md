@@ -10,6 +10,7 @@
 | `shell` | [shell.md](shell.md) | Interactive kas-container shell or one-shot command |
 | `run` | [run.md](run.md) | Boot avocado-os image in QEMU (meta-avocado only) |
 | `clean` | [clean.md](clean.md) | Remove the build directory |
+| `clean-sstate` | [clean-sstate.md](clean-sstate.md) | Prune stale sstate-cache entries by age |
 | `doctor` | [doctor.md](doctor.md) | Run pre-flight checks |
 | `triage` | [triage.md](triage.md) | Post-mortem a failed build |
 | `report` | [report.md](report.md) | Summarize a completed build run |
@@ -127,10 +128,11 @@ Related: [settings.md](settings.md), [configuration.md](configuration.md), [work
 
 ```text
 bspctl clean             - remove build/ to force a from-scratch build
+bspctl clean-sstate      - prune stale sstate-cache entries by age
 bspctl hashserv          - manage the persistent bitbake-hashserv daemon
 bspctl bitbake-override  - swap BSP-bundled bitbake for upstream
 bspctl run               - boot avocado-os QEMU image (meta-avocado only)
 bspctl stress-parse      - stress-test bitbake parser fork race
 ```
 
-Related: [clean.md](clean.md), [hashserv.md](hashserv.md), [bitbake-override.md](bitbake-override.md), [run.md](run.md), [stress-parse.md](stress-parse.md)
+Related: [clean.md](clean.md), [clean-sstate.md](clean-sstate.md), [hashserv.md](hashserv.md), [bitbake-override.md](bitbake-override.md), [run.md](run.md), [stress-parse.md](stress-parse.md)

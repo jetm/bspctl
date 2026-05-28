@@ -184,7 +184,7 @@ def _strip_branch_from_dump(dump_path: Path) -> None:
     avoids that validation without changing the checkout target.
     """
     data = yaml.safe_load(dump_path.read_text(encoding="utf-8"))
-    if not data or not isinstance(data.get("repos"), dict):
+    if not isinstance(data, dict) or not isinstance(data.get("repos"), dict):
         return
     changed = False
     for repo in data["repos"].values():

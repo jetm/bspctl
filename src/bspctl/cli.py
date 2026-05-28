@@ -17,6 +17,7 @@ except ImportError:  # pragma: no cover - typer < 0.26 path
 
 import bspctl.commands.build  # noqa: F401
 import bspctl.commands.clean  # noqa: F401
+import bspctl.commands.clean_sstate  # noqa: F401
 import bspctl.commands.diff  # noqa: F401
 import bspctl.commands.doctor  # noqa: F401
 import bspctl.commands.dump  # noqa: F401
