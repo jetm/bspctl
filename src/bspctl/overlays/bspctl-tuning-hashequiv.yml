@@ -23,5 +23,5 @@ local_conf_header:
     BB_SIGNATURE_HANDLER = "OEEquivHash"
     # Run a local hash equivalence server and connect it to the upstream
     # Yocto Project server for cross-machine reuse.
-    BB_HASHSERVE = "auto"
+    BB_HASHSERVE = "${@os.environ.get('BB_HASHSERVE', 'auto')}"
     BB_HASHSERVE_UPSTREAM = "wss://hashserv.yoctoproject.org/ws"

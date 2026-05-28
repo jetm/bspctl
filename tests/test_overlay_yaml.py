@@ -201,3 +201,19 @@ def test_hashequiv_overlay_sets_signature_handler(hashequiv_overlay: dict) -> No
     assert 'BB_SIGNATURE_HANDLER = "OEEquivHash"' in body
     assert "BB_HASHSERVE" in body
     assert "BB_HASHSERVE_UPSTREAM" in body
+
+
+def test_hashequiv_overlay_bb_hashserve_reads_from_env(hashequiv_overlay: dict) -> None:
+    """BB_HASHSERVE must resolve from the BB_HASHSERVE env var, falling back to 'auto'.
+
+    The bspctl-managed per-workspace hashserv daemon injects its own
+    BB_HASHSERVE into the build environment. A hardcoded ``"auto"`` would
+    defeat that injection and start a fresh ephemeral daemon per build.
+    """
+    body = hashequiv_overlay["local_conf_header"]["bspctl-tuning-hashequiv"]
+    assert "BB_HASHSERVE = \"${@os.environ.get('BB_HASHSERVE', 'auto')}\"" in body
+    for line in body.splitlines():
+        assert line.strip() != 'BB_HASHSERVE = "auto"', (
+            "BB_HASHSERVE must not be hardcoded to 'auto'; "
+            "it must read from the BB_HASHSERVE env var"
+        )
