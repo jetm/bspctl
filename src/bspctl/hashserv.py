@@ -15,6 +15,10 @@ is the only version we can guarantee that for.
 from __future__ import annotations
 
 import os
+import signal
+import socket
+import subprocess
+import time
 from hashlib import sha256
 from pathlib import Path
 
@@ -107,3 +111,96 @@ def is_running(bsp_root: Path) -> bool:
     except OSError:
         return False
     return b"bitbake-hashserv" in cmdline_bytes
+
+
+def ensure_running(bsp_root: Path) -> str | None:
+    """Ensure a workspace-scoped hashserv daemon is running; return its URL.
+
+    Returns ``f"ws://localhost:{port}"`` when the daemon is reachable (either
+    already running, or freshly spawned and passed the TCP startup probe).
+    Returns ``None`` silently when the workspace bitbake-hashserv binary has
+    not been synced yet, or when a fresh spawn never reached the TCP probe
+    success within ``_STARTUP_PROBE_DEADLINE_SECONDS`` (in which case the
+    daemon's stderr is captured to ``<state_dir>/hashserv.stderr`` and any
+    surviving child process is sent SIGTERM).
+
+    The PID/port files are only written after the TCP probe succeeds, so a
+    failed startup never leaves authoritative state behind for the next
+    invocation to mis-interpret.
+    """
+    state_dir = _state_dir(bsp_root)
+    port_file = state_dir / _PORT_FILENAME
+    pid_file = state_dir / _PID_FILENAME
+
+    if is_running(bsp_root):
+        try:
+            port = int(port_file.read_text().strip())
+        except FileNotFoundError, ValueError:
+            # Port file missing or corrupt (PID/port written non-atomically;
+            # crash between the two writes leaves an orphan PID file). Fall
+            # through to re-spawn below by treating the daemon as stopped.
+            pid_file.unlink(missing_ok=True)
+            port_file.unlink(missing_ok=True)
+        else:
+            return f"ws://localhost:{port}"
+
+    binary = _find_binary(bsp_root)
+    if binary is None:
+        return None
+
+    port = _workspace_port(bsp_root)
+    state_dir.mkdir(parents=True, exist_ok=True)
+    # Redirect daemon stderr directly to a log file rather than PIPE so the
+    # daemon never blocks when the kernel pipe buffer fills (default 64 KiB)
+    # on verbose or long-running builds.
+    stderr_log = state_dir / _STDERR_FILENAME
+    stderr_fh = stderr_log.open("wb")
+    proc = subprocess.Popen(
+        [
+            str(binary),
+            "--bind",
+            f"ws://localhost:{port}",
+            "--database",
+            str(state_dir / _DB_FILENAME),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=stderr_fh,
+        start_new_session=True,
+    )
+    stderr_fh.close()
+
+    deadline = time.monotonic() + _STARTUP_PROBE_DEADLINE_SECONDS
+    while True:
+        if proc.poll() is not None:
+            _abort_startup(proc, state_dir)
+            return None
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=0.5)
+        except OSError:
+            if time.monotonic() > deadline:
+                _abort_startup(proc, state_dir)
+                return None
+            time.sleep(0.1)
+            continue
+        sock.close()
+        pid_file.write_text(f"{proc.pid}\n")
+        port_file.write_text(f"{port}\n")
+        return f"ws://localhost:{port}"
+
+
+def _abort_startup(proc: subprocess.Popen[bytes], state_dir: Path) -> None:
+    """Tear down a failed daemon spawn.
+
+    Sends SIGTERM to the spawned process if it is still alive (the OS may
+    have reaped it already - ProcessLookupError is benign here). The daemon's
+    stderr was already redirected to <state_dir>/hashserv.stderr at spawn
+    time, so no explicit drain is needed here.
+
+    Deliberately does NOT touch the PID or port file: a failed startup must
+    leave no authoritative state for the next call.
+    """
+    if proc.poll() is None:
+        try:
+            os.kill(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass

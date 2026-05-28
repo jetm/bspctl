@@ -159,3 +159,223 @@ def test_is_running_pid_alive_correct_cmdline(
     monkeypatch.setattr(Path, "read_bytes", _fake_read_bytes)
 
     assert is_running(tmp_path) is True
+
+
+class _FakeProc:
+    """Stand-in for ``subprocess.Popen`` with deterministic poll/stderr behavior.
+
+    Drives ``ensure_running``'s probe loop and abort path without spawning
+    a real process. ``poll_returns`` is an iterable of values returned by
+    successive ``poll()`` calls; the last value sticks once consumed.
+    """
+
+    def __init__(
+        self,
+        pid: int = 12345,
+        poll_returns: list[int | None] | None = None,
+        stderr_bytes: bytes = b"",
+    ) -> None:
+        self.pid = pid
+        self._poll_returns = list(poll_returns) if poll_returns is not None else [None]
+        self._poll_calls = 0
+
+        class _Reader:
+            def __init__(self, data: bytes) -> None:
+                self._data = data
+                self.read_calls = 0
+
+            def read(self) -> bytes:
+                self.read_calls += 1
+                return self._data
+
+        self.stderr = _Reader(stderr_bytes)
+
+    def poll(self) -> int | None:
+        if self._poll_calls < len(self._poll_returns):
+            value = self._poll_returns[self._poll_calls]
+        else:
+            value = self._poll_returns[-1]
+        self._poll_calls += 1
+        return value
+
+
+class _FakeSocket:
+    """Stand-in for the socket returned by ``socket.create_connection``."""
+
+    def __init__(self) -> None:
+        self.close_calls = 0
+
+    def close(self) -> None:
+        self.close_calls += 1
+
+
+def _create_workspace_binary(workspace: Path) -> Path:
+    """Touch a fake bitbake-hashserv under the workspace and return its path."""
+    binary = workspace / "sources" / "poky" / "bitbake" / "bin" / "bitbake-hashserv"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\n")
+    binary.chmod(0o755)
+    return binary
+
+
+def test_ensure_running_returns_none_when_binary_missing(tmp_path: Path) -> None:
+    """No workspace binary - return None and write no state files."""
+    from bspctl.hashserv import ensure_running
+
+    assert ensure_running(tmp_path) is None
+    state_dir = tmp_path / ".bspctl"
+    if state_dir.exists():
+        assert not (state_dir / "hashserv.pid").exists()
+        assert not (state_dir / "hashserv.port").exists()
+
+
+def test_ensure_running_returns_existing_when_alive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Daemon already running - return the recorded URL without spawning."""
+    from bspctl import hashserv as hashserv_mod
+
+    state_dir = tmp_path / ".bspctl"
+    state_dir.mkdir(parents=True)
+    (state_dir / "hashserv.port").write_text("54321\n")
+
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: True)
+
+    def _popen_explodes(*_args: object, **_kwargs: object) -> None:
+        msg = "subprocess.Popen must not be called when daemon is already running"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(hashserv_mod.subprocess, "Popen", _popen_explodes)
+
+    assert hashserv_mod.ensure_running(tmp_path) == "ws://localhost:54321"
+
+
+def test_ensure_running_starts_process_and_probe_succeeds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fresh spawn, TCP probe succeeds: write PID + port files, return URL."""
+    from bspctl import hashserv as hashserv_mod
+
+    _create_workspace_binary(tmp_path)
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: False)
+
+    fake_proc = _FakeProc(pid=12345, poll_returns=[None])
+    captured_popen_args: dict[str, object] = {}
+
+    def _fake_popen(args: list[str], **kwargs: object) -> _FakeProc:
+        captured_popen_args["args"] = args
+        captured_popen_args["kwargs"] = kwargs
+        return fake_proc
+
+    monkeypatch.setattr(hashserv_mod.subprocess, "Popen", _fake_popen)
+
+    def _fake_create_connection(_addr: tuple[str, int], timeout: float) -> _FakeSocket:
+        del timeout
+        return _FakeSocket()
+
+    monkeypatch.setattr(hashserv_mod.socket, "create_connection", _fake_create_connection)
+
+    expected_port = hashserv_mod._workspace_port(tmp_path)
+    url = hashserv_mod.ensure_running(tmp_path)
+
+    assert url == f"ws://localhost:{expected_port}"
+    pid_file = tmp_path / ".bspctl" / "hashserv.pid"
+    port_file = tmp_path / ".bspctl" / "hashserv.port"
+    assert pid_file.read_text().strip() == "12345"
+    assert port_file.read_text().strip() == str(expected_port)
+
+    popen_args = captured_popen_args["args"]
+    assert isinstance(popen_args, list)
+    assert "--bind" in popen_args
+    assert f"ws://localhost:{expected_port}" in popen_args
+    assert "--database" in popen_args
+
+
+def test_ensure_running_aborts_when_probe_times_out(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Probe never succeeds - no PID/port files, stderr captured, None returned."""
+    import signal as signal_mod
+
+    from bspctl import hashserv as hashserv_mod
+
+    _create_workspace_binary(tmp_path)
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: False)
+
+    fake_proc = _FakeProc(pid=12345, poll_returns=[None], stderr_bytes=b"timeout text")
+    monkeypatch.setattr(
+        hashserv_mod.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: fake_proc,
+    )
+
+    def _refuse(*_args: object, **_kwargs: object) -> None:
+        raise ConnectionRefusedError
+
+    monkeypatch.setattr(hashserv_mod.socket, "create_connection", _refuse)
+    monkeypatch.setattr(hashserv_mod.time, "sleep", lambda _s: None)
+
+    # Drive monotonic forward fast so the deadline trips after a few probes.
+    fake_clock = {"now": 0.0}
+
+    def _fake_monotonic() -> float:
+        current = fake_clock["now"]
+        fake_clock["now"] += 1.0
+        return current
+
+    monkeypatch.setattr(hashserv_mod.time, "monotonic", _fake_monotonic)
+
+    sigterm_targets: list[int] = []
+
+    def _fake_kill(pid: int, sig: int) -> None:
+        if sig == signal_mod.SIGTERM:
+            sigterm_targets.append(pid)
+
+    monkeypatch.setattr(hashserv_mod.os, "kill", _fake_kill)
+
+    result = hashserv_mod.ensure_running(tmp_path)
+
+    assert result is None
+    assert not (tmp_path / ".bspctl" / "hashserv.pid").exists()
+    assert not (tmp_path / ".bspctl" / "hashserv.port").exists()
+    # stderr goes directly to the file at spawn time (not via PIPE drain).
+    stderr_file = tmp_path / ".bspctl" / "hashserv.stderr"
+    assert stderr_file.exists()
+    assert sigterm_targets == [12345]
+
+
+def test_ensure_running_handles_immediate_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Daemon exits before any probe - capture stderr, return None, no PID file."""
+    from bspctl import hashserv as hashserv_mod
+
+    _create_workspace_binary(tmp_path)
+    monkeypatch.setattr(hashserv_mod, "is_running", lambda _root: False)
+
+    fake_proc = _FakeProc(pid=12345, poll_returns=[1], stderr_bytes=b"db locked")
+    monkeypatch.setattr(
+        hashserv_mod.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: fake_proc,
+    )
+
+    def _should_not_probe(*_args: object, **_kwargs: object) -> None:
+        msg = "socket probe must not run when proc.poll() reports immediate exit"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(hashserv_mod.socket, "create_connection", _should_not_probe)
+
+    result = hashserv_mod.ensure_running(tmp_path)
+
+    assert result is None
+    assert not (tmp_path / ".bspctl" / "hashserv.pid").exists()
+    assert not (tmp_path / ".bspctl" / "hashserv.port").exists()
+    # stderr now goes directly to the file at spawn time (not via PIPE), so the
+    # file exists but is empty in tests (the mock process doesn't write to it).
+    stderr_file = tmp_path / ".bspctl" / "hashserv.stderr"
+    assert stderr_file.exists()
