@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-28
+
 ### Added
 - Added `bspctl layers` command to inspect which git revisions back each synced layer without running a full build.
 - Added `bspctl for-all <cmd>` command to run a shell command across every cloned source repository, exporting `BSPCTL_REPO_NAME`, `BSPCTL_REPO_PATH`, and `BSPCTL_REPO_COMMIT` per invocation; exits non-zero if any repo fails while still visiting all repos.
@@ -128,7 +130,8 @@ repos in the `bbsetup` kas translation now emit only the SHA, omitting the branc
 - `bspctl triage` post-mortem with keyed failure-pattern suggestions.
 - Vendor config layer at `~/.config/bspctl/vendors.toml` for custom board families.
 
-[Unreleased]: https://github.com/jetm/bspctl/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jetm/bspctl/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jetm/bspctl/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jetm/bspctl/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jetm/bspctl/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/jetm/bspctl/compare/v0.2.0...v0.2.1
