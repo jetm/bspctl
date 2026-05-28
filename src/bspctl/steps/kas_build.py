@@ -204,11 +204,32 @@ def _run_kas_dump(
         text=True,
         check=False,
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"kas dump failed (exit {result.returncode}):\n{result.stderr}")
-    dump = cfg.bsp_root / "avocado-bspctl.yml"
-    dump.write_text(result.stdout, encoding="utf-8")
-    return dump
+    if result.returncode == 0:
+        dump = cfg.bsp_root / "avocado-bspctl.yml"
+        dump.write_text(result.stdout, encoding="utf-8")
+        return dump
+
+    # Remote branch was rebased: the commit hash in the YAML is no longer
+    # reachable from origin/<branch> even though it is present locally.
+    # kas validates against the remote tracking ref, so the checkout step
+    # fails. Retry skipping that validation - all repos are locally present.
+    _GIT_STATE_MARKERS = ("does not contain commit", "no such remote ref")
+    if any(m in result.stderr for m in _GIT_STATE_MARKERS):
+        retry = subprocess.run(
+            ["kas", "dump", "--skip", "repos_checkout", kas_files],
+            cwd=str(cfg.bsp_root),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if retry.returncode == 0:
+            dump = cfg.bsp_root / "avocado-bspctl.yml"
+            dump.write_text(retry.stdout, encoding="utf-8")
+            return dump
+        raise RuntimeError(f"kas dump --skip repos_checkout failed (exit {retry.returncode}):\n{retry.stderr}")
+
+    raise RuntimeError(f"kas dump failed (exit {result.returncode}):\n{result.stderr}")
 
 
 def _resolve_user_yaml(cfg: BuildConfig, kas_yaml: Path) -> Path:
@@ -272,7 +293,11 @@ def _ccache_args(cfg: BuildConfig) -> list[str]:
     ccache_host = cfg.workspace / "ccache"
     ccache_host.mkdir(exist_ok=True)
     runtime_args = f"-v {ccache_host}:/work/ccache:rw"
-    if cfg.use_hashequiv and hashserv.is_running(cfg.bsp_root):
+    if cfg.use_hashequiv:
+        # Always add the host mapping when hashequiv is enabled: _build_env
+        # calls ensure_running() after _ccache_args, so the daemon may not be
+        # alive yet on the first build. The flag is harmless when the daemon
+        # is absent and mandatory when it is running.
         runtime_args += " --add-host=host.docker.internal:host-gateway"
     return ["--runtime-args", runtime_args]
 

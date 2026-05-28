@@ -123,8 +123,13 @@ def status(
         console.print("not running")
         return
     state_dir = bsp_root / ".bspctl"
-    pid = (state_dir / "hashserv.pid").read_text().strip()
-    port = (state_dir / "hashserv.port").read_text().strip()
+    try:
+        pid = (state_dir / "hashserv.pid").read_text().strip()
+        port = (state_dir / "hashserv.port").read_text().strip()
+    except OSError:
+        # Race: daemon exited between is_running() and the file reads.
+        console.print("not running")
+        return
     console.print(f"running, pid={pid}, url=ws://localhost:{port}")
 
 

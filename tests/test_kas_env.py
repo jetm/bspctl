@@ -301,7 +301,12 @@ def test_runtime_args_container_with_hashserv_appends_add_host(tmp_path: Path, m
 def test_runtime_args_container_hashserv_configured_but_not_running(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """use_hashequiv True but daemon is not running: no --add-host injected."""
+    """use_hashequiv True always injects --add-host regardless of daemon state.
+
+    _build_env() starts the daemon after _ccache_args() builds the command
+    string, so we cannot gate on is_running() here: the flag would be absent
+    on the first build. Add it unconditionally when use_hashequiv is True.
+    """
     monkeypatch.setattr(
         "bspctl.steps.kas_build.hashserv.is_running",
         lambda _root: False,
@@ -311,5 +316,4 @@ def test_runtime_args_container_hashserv_configured_but_not_running(
     assert len(result) == 2
     assert result[0] == "--runtime-args"
     assert f"-v {tmp_path / 'ccache'}:/work/ccache:rw" in result[1]
-    assert "host.docker.internal" not in result[1]
-    assert "--add-host" not in result[1]
+    assert "--add-host=host.docker.internal:host-gateway" in result[1]

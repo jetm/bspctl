@@ -270,10 +270,12 @@ def build(
     extra_overlays: list[Path] = []
     if kas_yaml is not None:
         extra_overlays = [Path(p) for p in kas_yaml.split(":")[1:]]
+    resolved_existing = {p.resolve() for p in extra_overlays}
     for overlay in _hashequiv_extra_overlays(cfg):
-        resolved_existing = {p.resolve() for p in extra_overlays}
-        if overlay.resolve() not in resolved_existing:
+        resolved_overlay = overlay.resolve()
+        if resolved_overlay not in resolved_existing:
             extra_overlays.append(overlay)
+            resolved_existing.add(resolved_overlay)
 
     overlay_source = _overlay_for(bsp)
 
