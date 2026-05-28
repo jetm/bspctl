@@ -293,6 +293,7 @@ def check_cache_dirs(cfg: BuildConfig) -> CheckResult:
 def check_sysctl(cfg: BuildConfig) -> CheckResult:
     keys = {
         "fs.inotify.max_user_instances": (4096, Severity.WARN),
+        "fs.inotify.max_user_watches": (524288, Severity.WARN),
         "vm.swappiness": (20, Severity.INFO),  # check as "<= threshold"
     }
     issues: list[str] = []
@@ -319,6 +320,7 @@ def check_sysctl(cfg: BuildConfig) -> CheckResult:
             fix_hint=(
                 "Write /etc/sysctl.d/99-yocto.conf with\n"
                 "  fs.inotify.max_user_instances = 8192\n"
+                "  fs.inotify.max_user_watches = 1048576\n"
                 "  vm.swappiness = 10\n"
                 "and run `sudo sysctl --system`."
             ),

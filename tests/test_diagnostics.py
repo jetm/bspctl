@@ -28,6 +28,7 @@ from bspctl.diagnostics import (
     check_container_os,
     check_host_tools,
     check_psi_support,
+    check_sysctl,
     run_all,
 )
 
@@ -408,3 +409,66 @@ def test_read_sysctl_returns_none_on_missing_file() -> None:
     ``ValueError`` was shadowed. The fix is ``except (FileNotFoundError, ValueError):``.
     """
     assert _read_sysctl("does.not.exist") is None
+
+
+def _sysctl_stub(values: dict[str, int | None]):
+    """Return a fake ``_read_sysctl`` that looks up ``values`` by key."""
+
+    def _stub(key: str) -> int | None:
+        return values.get(key)
+
+    return _stub
+
+
+def test_check_sysctl_watches_meets_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When every sysctl key meets its threshold, ``check_sysctl`` returns PASS."""
+    monkeypatch.setattr(
+        "bspctl.diagnostics._read_sysctl",
+        _sysctl_stub(
+            {
+                "fs.inotify.max_user_instances": 8192,
+                "fs.inotify.max_user_watches": 1048576,
+                "vm.swappiness": 10,
+            }
+        ),
+    )
+    result = check_sysctl(_cfg())
+    assert result.status is Status.PASS
+
+
+def test_check_sysctl_watches_below_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A watches value below 524288 must surface as FAIL with the value in the message."""
+    monkeypatch.setattr(
+        "bspctl.diagnostics._read_sysctl",
+        _sysctl_stub(
+            {
+                "fs.inotify.max_user_instances": 8192,
+                "fs.inotify.max_user_watches": 100000,
+                "vm.swappiness": 10,
+            }
+        ),
+    )
+    result = check_sysctl(_cfg())
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.WARN
+    assert "100000" in result.message
+    assert "fs.inotify.max_user_watches" in result.message
+
+
+def test_check_sysctl_watches_unreadable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unreadable watches sysctl must surface as FAIL with ``unreadable`` in the message."""
+    monkeypatch.setattr(
+        "bspctl.diagnostics._read_sysctl",
+        _sysctl_stub(
+            {
+                "fs.inotify.max_user_instances": 8192,
+                "fs.inotify.max_user_watches": None,
+                "vm.swappiness": 10,
+            }
+        ),
+    )
+    result = check_sysctl(_cfg())
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.WARN
+    assert "unreadable" in result.message
+    assert "fs.inotify.max_user_watches" in result.message
