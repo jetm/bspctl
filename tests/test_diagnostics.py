@@ -25,6 +25,7 @@ from bspctl.diagnostics import (
     _read_sysctl,
     check_bbsetup_config_sources,
     check_bitbake_locks,
+    check_ccache_health,
     check_container_os,
     check_docker_storage_driver,
     check_docker_version,
@@ -812,3 +813,157 @@ def test_check_docker_storage_driver_skips_when_unreachable() -> None:
         result = check_docker_storage_driver(_cfg())
     assert result.status is Status.SKIP
     assert result.severity is Severity.WARN
+
+
+def _ccache_cfg(workspace: Path) -> BuildConfig:
+    """BuildConfig pinning ``workspace`` so ``cfg.workspace / 'ccache'`` is deterministic."""
+    return BuildConfig(
+        workspace=workspace,
+        bsp_family="generic",
+        machine="qemux86-64",
+        distro="poky",
+        image="core-image-minimal",
+        manifest="kas.yml",
+        repo_url="https://example.invalid/none.git",
+        repo_branch="scarthgap",
+        container_image="jetm/kas-build-env:latest",
+    )
+
+
+def test_check_ccache_health_absent(tmp_path: Path) -> None:
+    """ccache directory not yet populated -> SKIP at WARN severity."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    # No ccache/ subdir created.
+    result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.WARN
+    assert "absent" in result.message
+    assert "populates on first build" in result.message
+
+
+def test_check_ccache_health_ccache_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """ccache directory exists but ``ccache`` binary missing -> SKIP at WARN severity."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "ccache").mkdir()
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: None)
+    result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.WARN
+
+
+def test_check_ccache_health_under_threshold(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Cache <90% full -> PASS at WARN severity."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "ccache").mkdir()
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/ccache")
+    stats = "cache_size_kibibyte 500000\nmax_size_kibibyte 1000000\n"
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run(stats),
+    ):
+        result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.PASS
+    assert result.severity is Severity.WARN
+    assert "50%" in result.message
+
+
+def test_check_ccache_health_at_threshold(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Cache >=90% full -> FAIL at WARN severity with a fix_hint."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "ccache").mkdir()
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/ccache")
+    stats = "cache_size_kibibyte 950000\nmax_size_kibibyte 1000000\n"
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run(stats),
+    ):
+        result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.WARN
+    assert "95%" in result.message
+    assert result.fix_hint is not None
+    assert "--max-size" in result.fix_hint or "ccache -C" in result.fix_hint
+
+
+def test_check_ccache_health_uncapped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``max_size_kibibyte=0`` (uncapped) -> PASS at WARN without ZeroDivisionError."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "ccache").mkdir()
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/ccache")
+    stats = "cache_size_kibibyte 500000\nmax_size_kibibyte 0\n"
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run(stats),
+    ):
+        result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.PASS
+    assert result.severity is Severity.WARN
+    assert "uncapped" in result.message
+
+
+def test_check_ccache_health_old_ccache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """ccache <4.0 lacks the kibibyte keys -> SKIP at WARN severity."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "ccache").mkdir()
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/ccache")
+    stats = "summary: 0 files\n"
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run(stats),
+    ):
+        result = check_ccache_health(_ccache_cfg(workspace))
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.WARN
+    assert "missing size keys" in result.message
+
+
+def test_shared_checks_contains_new_checks() -> None:
+    """The six new checks must all be registered in SHARED_CHECKS."""
+    from bspctl.diagnostics import (
+        SHARED_CHECKS,
+        check_ccache_health,
+        check_docker_storage_driver,
+        check_docker_version,
+        check_git_global_config,
+        check_kas_yaml_syntax,
+        check_workspace_filesystem,
+    )
+
+    assert check_git_global_config in SHARED_CHECKS
+    assert check_kas_yaml_syntax in SHARED_CHECKS
+    assert check_workspace_filesystem in SHARED_CHECKS
+    assert check_docker_version in SHARED_CHECKS
+    assert check_docker_storage_driver in SHARED_CHECKS
+    assert check_ccache_health in SHARED_CHECKS
+
+
+def test_docker_checks_membership_invariant() -> None:
+    """Only the two ``docker info``-backed checks belong in _DOCKER_CHECKS.
+
+    The other four new checks exercise host-side resources (git config,
+    host kas binary, host /proc/mounts, host ccache) reachable in both
+    container and host mode, so they must NOT be filtered out in host
+    mode.
+    """
+    from bspctl.diagnostics import (
+        _DOCKER_CHECKS,
+        check_ccache_health,
+        check_docker_storage_driver,
+        check_docker_version,
+        check_git_global_config,
+        check_kas_yaml_syntax,
+        check_workspace_filesystem,
+    )
+
+    assert check_docker_version in _DOCKER_CHECKS
+    assert check_docker_storage_driver in _DOCKER_CHECKS
+    assert check_git_global_config not in _DOCKER_CHECKS
+    assert check_kas_yaml_syntax not in _DOCKER_CHECKS
+    assert check_workspace_filesystem not in _DOCKER_CHECKS
+    assert check_ccache_health not in _DOCKER_CHECKS

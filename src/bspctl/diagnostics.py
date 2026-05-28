@@ -881,7 +881,7 @@ def check_workspace_filesystem(cfg: BuildConfig) -> CheckResult:
     for mountpoint, kind in entries:
         try:
             mp = Path(mountpoint)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if workspace == mp or workspace.is_relative_to(mp):
             fstype = kind
@@ -995,6 +995,98 @@ def check_docker_storage_driver(cfg: BuildConfig) -> CheckResult:
     )
 
 
+def check_ccache_health(cfg: BuildConfig) -> CheckResult:
+    """Verify the workspace ccache is not at its eviction threshold.
+
+    ccache is a host-side directory bind-mounted into the container at
+    build time. A near-full cache evicts entries on every store, defeating
+    the speedup it exists to provide. This WARN check parses
+    ``ccache --print-stats`` (ccache 4.0+) and fails when the cache is
+    >=90% full so the user can grow ``max_size`` or clear the cache before
+    the next build wastes cycles.
+
+    SKIP when the ccache directory has not been populated yet, the
+    ``ccache`` binary is missing, the stats command fails, or the stats
+    output predates the 4.0 machine-readable keys.
+    """
+    name = "ccache-health"
+    ccache_dir = cfg.workspace / "ccache"
+    if not ccache_dir.exists():
+        return _skip(
+            name,
+            Severity.WARN,
+            f"{ccache_dir} absent; ccache populates on first build",
+        )
+
+    if shutil.which("ccache") is None:
+        return _skip(name, Severity.WARN, "ccache binary not on PATH")
+
+    try:
+        out = subprocess.run(
+            ["ccache", "--print-stats"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        return _skip(name, Severity.WARN, f"ccache --print-stats failed: {exc}")
+    if out.returncode != 0:
+        return _skip(
+            name,
+            Severity.WARN,
+            out.stderr.strip() or "ccache --print-stats exited non-zero",
+        )
+
+    cache_size: int | None = None
+    max_size: int | None = None
+    for line in out.stdout.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        key, value = parts
+        if key == "cache_size_kibibyte":
+            try:
+                cache_size = int(value)
+            except ValueError:
+                continue
+        elif key == "max_size_kibibyte":
+            try:
+                max_size = int(value)
+            except ValueError:
+                continue
+
+    if cache_size is None or max_size is None:
+        return _skip(
+            name,
+            Severity.WARN,
+            "ccache --print-stats output missing size keys (ccache < 4.0?)",
+        )
+
+    if max_size == 0:
+        return _ok(
+            name,
+            Severity.WARN,
+            "ccache uncapped (max_size_kibibyte=0)",
+        )
+
+    ratio = cache_size / max_size
+    used = _fmt_size(cache_size * 1024)
+    cap = _fmt_size(max_size * 1024)
+    pct = int(ratio * 100)
+    if ratio < 0.90:
+        return _ok(name, Severity.WARN, f"{pct}% full ({used} of {cap})")
+
+    return _fail(
+        name,
+        Severity.WARN,
+        f"{pct}% full ({used} of {cap})",
+        fix_hint=(
+            f"Grow the cache with `ccache --max-size=<larger-than-{cap}>` "
+            "or clear it with `ccache -C` before the next build."
+        ),
+    )
+
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #
@@ -1005,6 +1097,12 @@ def check_docker_storage_driver(cfg: BuildConfig) -> CheckResult:
 #
 # NOTE: check_psi_support reads host /proc/pressure/ - do NOT add it
 # to _DOCKER_CHECKS; it must run in both container and host mode.
+#
+# NOTE: ``check_git_global_config``, ``check_kas_yaml_syntax``,
+# ``check_workspace_filesystem``, and ``check_ccache_health`` are NOT in
+# ``_DOCKER_CHECKS`` - they exercise host-side resources (git config,
+# host kas binary, host /proc/mounts, host ccache) reachable in both
+# container and host mode.
 SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_host_tools,
     check_docker_daemon,
@@ -1020,6 +1118,12 @@ SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_bitbake_override,
     check_bitbake_locks,
     check_psi_support,
+    check_git_global_config,
+    check_kas_yaml_syntax,
+    check_workspace_filesystem,
+    check_docker_version,
+    check_docker_storage_driver,
+    check_ccache_health,
 )
 
 # Docker-dependent checks from ``SHARED_CHECKS``. Filtered out of
@@ -1032,6 +1136,8 @@ _DOCKER_CHECKS: tuple[CheckFunc, ...] = (
     check_container_os,
     check_container_bitbake,
     check_docker_ulimits,
+    check_docker_version,
+    check_docker_storage_driver,
 )
 
 
