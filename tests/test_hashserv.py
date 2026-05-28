@@ -1,23 +1,22 @@
-"""Unit tests for bspctl.hashserv pure helpers.
+"""Unit tests for bspctl.hashserv pure helpers and is_running predicate.
 
-Covers the deterministic port derivation and the workspace-pinned
-binary lookup. The binary lookup explicitly must NOT fall through to
-host PATH - a PATH-mismatch daemon would speak a different wire
-protocol than the workspace bitbake and silently corrupt the
-equivalence cache.
+Covers the deterministic port derivation, the workspace-pinned binary
+lookup (which explicitly must NOT fall through to host PATH), and the
+PID-file + cmdline-based liveness probe in ``is_running``. The cmdline
+check is what guards against PID recycling - a stale PID file pointing
+at a now-unrelated process must not look "running" to the rest of the
+pipeline.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
-from bspctl.hashserv import _find_binary, _workspace_port
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from bspctl.hashserv import _find_binary, _workspace_port, is_running
 
 pytestmark = pytest.mark.unit
 
@@ -79,3 +78,84 @@ def test_find_binary_returns_none_when_absent(
     result = _find_binary(tmp_path)
 
     assert result is None
+
+
+def _write_pid_file(workspace: Path, pid: int) -> Path:
+    """Helper: write ``<workspace>/.bspctl/hashserv.pid`` with ``pid``."""
+    state_dir = workspace / ".bspctl"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    pid_file = state_dir / "hashserv.pid"
+    pid_file.write_text(f"{pid}\n")
+    return pid_file
+
+
+def test_is_running_pid_file_absent(tmp_path: Path) -> None:
+    """No PID file under .bspctl/ - the daemon cannot be running."""
+    assert is_running(tmp_path) is False
+
+
+def test_is_running_pid_dead(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PID file exists, but the PID itself is gone (ProcessLookupError)."""
+    _write_pid_file(tmp_path, 999999)
+
+    def _kill_raises(_pid: int, _sig: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr(os, "kill", _kill_raises)
+
+    assert is_running(tmp_path) is False
+
+
+def test_is_running_pid_recycled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PID is alive but its cmdline does not mention bitbake-hashserv.
+
+    Simulates the post-reboot scenario where the recorded PID has been
+    handed to an unrelated process (here, a shell). Without the cmdline
+    guard, ``is_running`` would mistakenly report True.
+    """
+    _write_pid_file(tmp_path, 12345)
+
+    monkeypatch.setattr(os, "kill", lambda _pid, _sig: None)
+
+    real_read_bytes = Path.read_bytes
+
+    def _fake_read_bytes(self: Path) -> bytes:
+        if str(self).startswith("/proc/"):
+            # NUL-separated argv for a shell process - no bitbake-hashserv.
+            return b"/bin/bash\x00-l\x00"
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", _fake_read_bytes)
+
+    assert is_running(tmp_path) is False
+
+
+def test_is_running_pid_alive_correct_cmdline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PID alive AND its cmdline contains bitbake-hashserv - True."""
+    _write_pid_file(tmp_path, 12345)
+
+    monkeypatch.setattr(os, "kill", lambda _pid, _sig: None)
+
+    real_read_bytes = Path.read_bytes
+
+    def _fake_read_bytes(self: Path) -> bytes:
+        if str(self).startswith("/proc/"):
+            return (
+                b"/usr/bin/python3\x00"
+                b"/workspace/sources/poky/bitbake/bin/bitbake-hashserv\x00"
+                b"--bind\x00ws://localhost:50000\x00"
+            )
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", _fake_read_bytes)
+
+    assert is_running(tmp_path) is True
