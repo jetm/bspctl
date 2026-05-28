@@ -26,6 +26,7 @@ from bspctl.diagnostics import (
     check_bbsetup_config_sources,
     check_bitbake_locks,
     check_container_os,
+    check_docker_storage_driver,
     check_docker_version,
     check_git_global_config,
     check_host_tools,
@@ -759,5 +760,55 @@ def test_check_docker_version_skips_when_unreachable() -> None:
         side_effect=FileNotFoundError("docker"),
     ):
         result = check_docker_version(_cfg())
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.WARN
+
+
+def test_check_docker_storage_driver_overlay2_passes() -> None:
+    """``overlay2`` driver -> PASS at WARN severity."""
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run("overlay2\n"),
+    ):
+        result = check_docker_storage_driver(_cfg())
+    assert result.status is Status.PASS
+    assert result.severity is Severity.WARN
+    assert "overlay2" in result.message
+
+
+def test_check_docker_storage_driver_devicemapper_fails() -> None:
+    """``devicemapper`` driver -> FAIL at WARN severity with fix_hint."""
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run("devicemapper\n"),
+    ):
+        result = check_docker_storage_driver(_cfg())
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.WARN
+    assert "devicemapper" in result.message
+    assert result.fix_hint is not None
+    assert "overlay2" in result.fix_hint
+
+
+def test_check_docker_storage_driver_btrfs_fails() -> None:
+    """``btrfs`` driver -> FAIL at WARN severity with fix_hint."""
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        return_value=_mock_run("btrfs\n"),
+    ):
+        result = check_docker_storage_driver(_cfg())
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.WARN
+    assert "btrfs" in result.message
+    assert result.fix_hint is not None
+
+
+def test_check_docker_storage_driver_skips_when_unreachable() -> None:
+    """``docker`` binary missing -> SKIP at WARN severity (BLOCK is the daemon check's job)."""
+    with patch(
+        "bspctl.diagnostics.subprocess.run",
+        side_effect=FileNotFoundError("docker"),
+    ):
+        result = check_docker_storage_driver(_cfg())
     assert result.status is Status.SKIP
     assert result.severity is Severity.WARN

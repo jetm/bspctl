@@ -956,6 +956,45 @@ def check_docker_version(cfg: BuildConfig) -> CheckResult:
     )
 
 
+def check_docker_storage_driver(cfg: BuildConfig) -> CheckResult:
+    """Verify the Docker storage driver is ``overlay2``.
+
+    Devicemapper, btrfs, and zfs storage drivers degrade build performance and
+    can cause sstate restore failures. SKIP when the daemon is unreachable so
+    this WARN check does not duplicate the BLOCK signal from
+    :func:`check_docker_daemon`.
+    """
+    name = "docker-storage-driver"
+    try:
+        out = subprocess.run(
+            ["docker", "info", "--format", "{{.Driver}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        return _skip(name, Severity.WARN, f"docker not reachable: {exc}")
+    if out.returncode != 0:
+        return _skip(
+            name,
+            Severity.WARN,
+            out.stderr.strip() or "docker info failed",
+        )
+
+    driver = out.stdout.strip()
+    if driver == "overlay2":
+        return _ok(name, Severity.WARN, f"driver={driver}")
+
+    return _fail(
+        name,
+        Severity.WARN,
+        f"driver={driver!r} (want 'overlay2')",
+        fix_hint=(
+            'Set `"storage-driver": "overlay2"` in /etc/docker/daemon.json and run `sudo systemctl restart docker`.'
+        ),
+    )
+
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #
