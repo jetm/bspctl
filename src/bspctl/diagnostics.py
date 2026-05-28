@@ -790,6 +790,52 @@ def check_git_global_config(cfg: BuildConfig) -> CheckResult:
     return _ok(name, Severity.BLOCK, f"user.email={email}")
 
 
+def check_kas_yaml_syntax(cfg: BuildConfig) -> CheckResult:
+    """Validate the generated kas YAML parses cleanly via ``kas dump``.
+
+    A malformed kas YAML otherwise fails mid-build with an opaque kas-container
+    traceback after the image has already been pulled. This BLOCK check runs
+    ``kas dump <file>`` before any expensive step and surfaces the parser's
+    error verbatim.
+
+    Skipped when the YAML has not been generated yet (manifest-flow runs
+    create it on the fly) or when no host ``kas`` binary is on PATH and the
+    workspace runs in container mode (``check_host_tools`` enforces the
+    ``kas`` requirement in host mode separately).
+    """
+    name = "kas-yaml-syntax"
+    kas_yaml = cfg.kas_yaml
+    if not kas_yaml.exists():
+        return _skip(name, Severity.BLOCK, f"kas YAML {kas_yaml} not yet generated")
+    if not cfg.host_mode and shutil.which("kas") is None:
+        return _skip(
+            name,
+            Severity.BLOCK,
+            "kas binary not on host PATH; container-mode workspace, deferring to in-container parse",
+        )
+    try:
+        out = subprocess.run(
+            ["kas", "dump", str(kas_yaml)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        return _skip(name, Severity.BLOCK, f"kas unavailable: {exc}")
+    if out.returncode != 0:
+        first_line = next(
+            (line for line in out.stderr.splitlines() if line.strip()),
+            "kas dump exited non-zero with empty stderr",
+        )
+        return _fail(
+            name,
+            Severity.BLOCK,
+            f"{kas_yaml}: {first_line}",
+            fix_hint=f"Edit {kas_yaml} and re-run; see `kas dump {kas_yaml}` for the full parser error.",
+        )
+    return _ok(name, Severity.BLOCK, f"{kas_yaml} parses cleanly")
+
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #

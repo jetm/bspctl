@@ -28,6 +28,7 @@ from bspctl.diagnostics import (
     check_container_os,
     check_git_global_config,
     check_host_tools,
+    check_kas_yaml_syntax,
     check_psi_support,
     check_sysctl,
     run_all,
@@ -542,3 +543,83 @@ def test_check_git_global_config_git_missing(monkeypatch: pytest.MonkeyPatch) ->
     assert result.severity is Severity.BLOCK
     assert "user.email" in result.message
     assert "user.name" in result.message
+
+
+def _kas_yaml_cfg(yaml_path: Path) -> BuildConfig:
+    """BuildConfig whose ``kas_yaml`` resolves to ``yaml_path`` via override."""
+    return BuildConfig(
+        workspace=yaml_path.parent,
+        bsp_family="generic",
+        machine="qemux86-64",
+        distro="poky",
+        image="core-image-minimal",
+        manifest="kas.yml",
+        repo_url="https://example.invalid/none.git",
+        repo_branch="scarthgap",
+        container_image="jetm/kas-build-env:latest",
+        kas_yaml_override=yaml_path,
+    )
+
+
+def test_check_kas_yaml_syntax_missing_file(tmp_path: Path) -> None:
+    """No kas YAML on disk -> SKIP at BLOCK severity."""
+    missing = tmp_path / "not-generated.yml"
+    cfg = _kas_yaml_cfg(missing)
+    result = check_kas_yaml_syntax(cfg)
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.BLOCK
+    assert "not yet generated" in result.message
+    assert str(missing) in result.message
+
+
+def test_check_kas_yaml_syntax_valid(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Mocked ``kas dump`` exits 0 -> PASS at BLOCK severity with the path in the message."""
+    yaml_path = tmp_path / "kas.yml"
+    yaml_path.write_text("header:\n  version: 14\n")
+    cfg = _kas_yaml_cfg(yaml_path)
+    monkeypatch.setattr(
+        "bspctl.diagnostics.subprocess.run",
+        lambda *a, **kw: _mock_run("", returncode=0),
+    )
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/kas")
+    result = check_kas_yaml_syntax(cfg)
+    assert result.status is Status.PASS
+    assert result.severity is Severity.BLOCK
+    assert str(yaml_path) in result.message
+
+
+def test_check_kas_yaml_syntax_invalid(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Mocked ``kas dump`` exits 1 -> FAIL at BLOCK; first stderr line surfaces in message."""
+    yaml_path = tmp_path / "broken.yml"
+    yaml_path.write_text("header: !!!broken\n")
+    cfg = _kas_yaml_cfg(yaml_path)
+
+    def fake_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="",
+            stderr="line 5: invalid token\nTraceback dropped\n",
+        )
+
+    monkeypatch.setattr("bspctl.diagnostics.subprocess.run", fake_run)
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: "/usr/bin/kas")
+    result = check_kas_yaml_syntax(cfg)
+    assert result.status is Status.FAIL
+    assert result.severity is Severity.BLOCK
+    assert "line 5: invalid token" in result.message
+    assert result.fix_hint is not None
+    assert str(yaml_path) in result.fix_hint
+
+
+def test_check_kas_yaml_syntax_kas_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Container-mode workspace with no host ``kas`` binary -> SKIP at BLOCK."""
+    yaml_path = tmp_path / "kas.yml"
+    yaml_path.write_text("header:\n  version: 14\n")
+    cfg = _kas_yaml_cfg(yaml_path)
+    assert cfg.host_mode is False
+    monkeypatch.setattr("bspctl.diagnostics.shutil.which", lambda _name: None)
+    result = check_kas_yaml_syntax(cfg)
+    assert result.status is Status.SKIP
+    assert result.severity is Severity.BLOCK
+    assert "kas binary not on host PATH" in result.message
