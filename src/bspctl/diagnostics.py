@@ -1142,6 +1142,7 @@ def check_hashserv(cfg: BuildConfig) -> CheckResult:
     sock.close()
     return _ok(name, Severity.WARN, f"running at ws://localhost:{port} (PID {pid})")
 
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #

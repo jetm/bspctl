@@ -92,7 +92,8 @@ bspctl build -f imx-6.12.49-2.2.0.xml -m imx8mp-var-dart --host
 3. **setup-env** (manifest-driven only) - runs `var-setup-release.sh` or local.conf fixup; skipped if `bblayers.conf` already present
 4. **bitbake-override** - swaps the BSP-bundled bitbake for a local upstream checkout
 5. **gen-kas** (manifest-driven only) - regenerates `kas-<bsp>.yml` from the manifest
-6. **kas-container build** - invokes `kas-container build <kas_yaml>:<overlay>` (or `kas build` in host mode)
+6. **hashserv** - when `[build] hashserv = true`, ensures the workspace-scoped bitbake-hashserv daemon is running, injects `BB_HASHSERVE` into the container env, AND auto-appends `bspctl-tuning-hashequiv.yml` to the overlay list so `BB_SIGNATURE_HANDLER = "OEEquivHash"` takes effect with no extra user wiring. See [hashserv.md](hashserv.md).
+7. **kas-container build** - invokes `kas-container build <kas_yaml>:<overlay>` (or `kas build` in host mode)
 
 Run telemetry is written to `<bsp_root>/build/runs/<YYYYMMDD-HHMMSS>/`.
 
@@ -109,3 +110,4 @@ bspctl triage 20260601-143022        # inspect a specific run
 - [doctor.md](doctor.md) - run pre-flight checks standalone
 - [triage.md](triage.md) - post-mortem a failed build
 - [configuration.md](configuration.md) - env vars and config.toml defaults
+- [hashserv.md](hashserv.md) - persistent hashserv daemon auto-started during step 6

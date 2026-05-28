@@ -234,7 +234,6 @@ def stop(bsp_root: Path) -> bool:
     return True
 
 
-
 def _abort_startup(proc: subprocess.Popen[bytes], state_dir: Path) -> None:
     """Tear down a failed daemon spawn.
 

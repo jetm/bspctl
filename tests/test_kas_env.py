@@ -202,9 +202,7 @@ def _hashequiv_cfg(
     )
 
 
-def test_build_env_omits_bb_hashserve_when_use_hashequiv_false(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_env_omits_bb_hashserve_when_use_hashequiv_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When cfg.use_hashequiv is False, BB_HASHSERVE is not set (overlay falls back to auto)."""
     monkeypatch.delenv("BB_HASHSERVE", raising=False)
     cfg = _hashequiv_cfg(tmp_path, use_hashequiv=False)
@@ -214,9 +212,7 @@ def test_build_env_omits_bb_hashserve_when_use_hashequiv_false(
     assert "BB_HASHSERVE" not in env
 
 
-def test_build_env_host_mode_keeps_localhost_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_env_host_mode_keeps_localhost_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Host mode: ensure_running's localhost URL is set verbatim."""
     monkeypatch.delenv("BB_HASHSERVE", raising=False)
     monkeypatch.setattr(
@@ -285,9 +281,7 @@ def test_runtime_args_container_no_hashserv_returns_ccache_only(
     assert "host.docker.internal" not in result[1]
 
 
-def test_runtime_args_container_with_hashserv_appends_add_host(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_runtime_args_container_with_hashserv_appends_add_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """use_hashequiv True + daemon running: both ccache mount and --add-host inside same string."""
     monkeypatch.setattr(
         "bspctl.steps.kas_build.hashserv.is_running",

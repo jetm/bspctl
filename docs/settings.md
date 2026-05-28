@@ -56,6 +56,7 @@ All keys use dotted notation (`section.subsection.key`).
 | `build.pressure_max_cpu` | int | PSI cpu avg10 threshold to throttle bitbake task scheduling |
 | `build.pressure_max_io` | int | PSI io avg10 threshold |
 | `build.pressure_max_memory` | int | PSI memory avg10 threshold |
+| `build.hashserv` | bool | Persistent workspace-scoped bitbake-hashserv daemon (default: `false`). See [hashserv.md](hashserv.md). |
 
 ### Layers settings (`layers.*`)
 

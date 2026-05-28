@@ -46,9 +46,7 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def test_status_when_not_running(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_status_when_not_running(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``status`` exits 0 with ``not running`` when the daemon is down."""
     monkeypatch.setattr(hashserv_cmd.hashserv, "is_running", lambda _root: False)
 
@@ -58,9 +56,7 @@ def test_status_when_not_running(
     assert "not running" in result.output
 
 
-def test_status_when_running(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_status_when_running(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``status`` reads PID/port files and reports the URL when running."""
     bsp_root = workspace / "nxp"
     state_dir = bsp_root / ".bspctl"
@@ -76,9 +72,7 @@ def test_status_when_running(
     assert "ws://localhost:50000" in result.output
 
 
-def test_start_success(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_start_success(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``start`` exits 0 and prints ``started: <url>`` when ensure_running returns a URL."""
     monkeypatch.setattr(
         hashserv_cmd.hashserv,
@@ -92,9 +86,7 @@ def test_start_success(
     assert "started: ws://localhost:50000" in result.output
 
 
-def test_start_failure(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_start_failure(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``start`` exits 1 and surfaces the spec-pinned error string on None."""
     monkeypatch.setattr(hashserv_cmd.hashserv, "ensure_running", lambda _root: None)
 
@@ -104,9 +96,7 @@ def test_start_failure(
     assert "bitbake-hashserv not found or startup probe failed" in result.output
 
 
-def test_stop_when_running(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stop_when_running(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``stop`` exits 0 and prints ``stopped`` when the helper reports True."""
     monkeypatch.setattr(hashserv_cmd.hashserv, "stop", lambda _root: True)
 
@@ -116,9 +106,7 @@ def test_stop_when_running(
     assert "stopped" in result.output
 
 
-def test_stop_when_not_running(
-    runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stop_when_not_running(runner: _CliRunner, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``stop`` exits 0 and prints ``not running`` when the helper reports False."""
     monkeypatch.setattr(hashserv_cmd.hashserv, "stop", lambda _root: False)
 

@@ -21,6 +21,7 @@
 | `diff` | [diff.md](diff.md) | Compare two manifest versions |
 | `prefetch` | [prefetch.md](prefetch.md) | Pre-fetch recipe sources into DL_DIR |
 | `dump` | [dump.md](dump.md) | Inspect the resolved kas YAML |
+| `hashserv` | [hashserv.md](hashserv.md) | Manage the persistent bitbake-hashserv daemon |
 | `bitbake-override` | [bitbake-override.md](bitbake-override.md) | Swap BSP-bundled bitbake for upstream |
 | `stress-parse` | [stress-parse.md](stress-parse.md) | Stress-test bitbake parser fork race |
 | Configuration | [configuration.md](configuration.md) | Env vars, config.toml, vendors.toml, telemetry layout |
@@ -66,6 +67,7 @@
 - Swap BSP bitbake for a local upstream checkout: [bitbake-override.md](bitbake-override.md)
 - Boot a QEMU image from the build directory: [run.md](run.md)
 - Reproduce and measure the bitbake parser race: [stress-parse.md](stress-parse.md)
+- Persistent hash equivalence across builds: [hashserv.md](hashserv.md)
 
 ---
 
@@ -125,9 +127,10 @@ Related: [settings.md](settings.md), [configuration.md](configuration.md), [work
 
 ```text
 bspctl clean             - remove build/ to force a from-scratch build
+bspctl hashserv          - manage the persistent bitbake-hashserv daemon
 bspctl bitbake-override  - swap BSP-bundled bitbake for upstream
 bspctl run               - boot avocado-os QEMU image (meta-avocado only)
 bspctl stress-parse      - stress-test bitbake parser fork race
 ```
 
-Related: [clean.md](clean.md), [bitbake-override.md](bitbake-override.md), [run.md](run.md), [stress-parse.md](stress-parse.md)
+Related: [clean.md](clean.md), [hashserv.md](hashserv.md), [bitbake-override.md](bitbake-override.md), [run.md](run.md), [stress-parse.md](stress-parse.md)

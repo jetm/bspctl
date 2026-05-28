@@ -1013,9 +1013,7 @@ def test_check_hashserv_skip_when_disabled(tmp_path: Path) -> None:
     assert "[build] hashserv = false" in result.message
 
 
-def test_check_hashserv_pass_when_running_and_port_listens(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_hashserv_pass_when_running_and_port_listens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """is_running True + port file present + TCP probe succeeds -> PASS / WARN."""
     from bspctl import diagnostics
     from bspctl.diagnostics import check_hashserv
@@ -1044,9 +1042,7 @@ def test_check_hashserv_pass_when_running_and_port_listens(
     assert fake_sock.closed is True
 
 
-def test_check_hashserv_fail_when_configured_but_not_running(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_hashserv_fail_when_configured_but_not_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """use_hashequiv=True + is_running=False -> FAIL / WARN with not-running message."""
     from bspctl.diagnostics import check_hashserv
 
@@ -1061,9 +1057,7 @@ def test_check_hashserv_fail_when_configured_but_not_running(
     assert result.fix_hint == "bspctl hashserv start"
 
 
-def test_check_hashserv_fail_when_port_unreachable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_hashserv_fail_when_port_unreachable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """is_running True but TCP probe raises ConnectionRefusedError -> FAIL / WARN."""
     from bspctl import diagnostics
     from bspctl.diagnostics import check_hashserv
@@ -1092,9 +1086,7 @@ def test_check_hashserv_fail_when_port_unreachable(
     assert result.fix_hint == "bspctl hashserv stop && bspctl hashserv start"
 
 
-def test_check_hashserv_fail_when_port_file_deleted_mid_check(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_hashserv_fail_when_port_file_deleted_mid_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """is_running True but port file absent (concurrent stop) -> FAIL, no exception."""
     from bspctl.diagnostics import check_hashserv
 

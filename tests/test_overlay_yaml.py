@@ -214,6 +214,5 @@ def test_hashequiv_overlay_bb_hashserve_reads_from_env(hashequiv_overlay: dict) 
     assert "BB_HASHSERVE = \"${@os.environ.get('BB_HASHSERVE', 'auto')}\"" in body
     for line in body.splitlines():
         assert line.strip() != 'BB_HASHSERVE = "auto"', (
-            "BB_HASHSERVE must not be hardcoded to 'auto'; "
-            "it must read from the BB_HASHSERVE env var"
+            "BB_HASHSERVE must not be hardcoded to 'auto'; it must read from the BB_HASHSERVE env var"
         )

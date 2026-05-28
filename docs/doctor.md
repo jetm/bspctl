@@ -35,11 +35,15 @@ bspctl doctor --psi-calibrate
 
 Checks cover:
 
-- Container runtime (Docker daemon, kas-container image present)
-- Host tools (`repo`, `kas-container`, `git`)
-- Disk space (build root partition)
+- Container runtime (Docker daemon version >= 20.10, storage driver, kas-container image present)
+- Host tools (`repo`, `kas-container`, `git`, global git identity)
+- Disk space (build root partition, ccache fill ratio)
+- Workspace filesystem (rejects vfat/exfat/ntfs/9p/nfs; sstate hardlinks need a local fs)
+- Kernel sysctls (`fs.inotify.max_user_instances`, `fs.inotify.max_user_watches`)
+- Kas YAML syntax (`kas dump` parse check)
 - BSP-specific checks (repo manifest validity for NXP)
-- PSI pressure support (kernel feature check)
+- PSI pressure support (kernel feature check, threshold calibration)
+- Persistent hashserv daemon (when `[build] hashserv = true` — PID + TCP probe; see [hashserv.md](hashserv.md))
 
 ## PSI calibration
 
@@ -66,3 +70,4 @@ Copy those values into `~/.config/bspctl/config.toml` to have bspctl throttle bi
 
 - [build.md](build.md) - doctor runs automatically before every build
 - [configuration.md](configuration.md) - `build.doctor` flag to disable auto-doctor
+- [hashserv.md](hashserv.md) - what `check_hashserv` actually probes and how to fix its findings

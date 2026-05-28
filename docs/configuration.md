@@ -48,6 +48,11 @@ pressure_max_cpu = 72
 pressure_max_io = 41
 pressure_max_memory = 20
 
+# Persistent hash equivalence daemon (off by default; see hashserv.md).
+# When true, bspctl spawns and reuses a workspace-scoped bitbake-hashserv
+# so OEEquivHash sstate equivalence accumulates across builds.
+hashserv = true
+
 [layers]
 show_hashes = true   # always print layer SHAs after build/sync
 ```
@@ -89,3 +94,4 @@ Every build run writes to:
 
 - [settings.md](settings.md) - CRUD interface for config.toml
 - [workspace.md](workspace.md) - workspace detection and BSP families
+- [hashserv.md](hashserv.md) - `[build] hashserv` persistent daemon details
