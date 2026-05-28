@@ -174,3 +174,89 @@ def test_env_sstate_dir_beats_cfg(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     env = _build_env(cfg)
 
     assert env["SSTATE_DIR"] == "/env/sstate"
+
+
+# ---------------------------------------------------------------------------
+# Persistent hashserv (BB_HASHSERVE) injection tests
+# ---------------------------------------------------------------------------
+
+
+def _hashequiv_cfg(
+    workspace: Path,
+    *,
+    use_hashequiv: bool = True,
+    host_mode: bool = False,
+) -> BuildConfig:
+    return BuildConfig(
+        workspace=workspace,
+        bsp_family="nxp",  # type: ignore[arg-type]
+        machine="imx8mp-var-dart",
+        distro="fsl-imx-xwayland",
+        image="core-image-minimal",
+        manifest="imx-6.6.52-2.2.2.xml",
+        repo_url="https://example.invalid/repo.git",
+        repo_branch="imx-6.6.52-2.2.2",
+        container_image="jetm/kas-build-env:5.2-f40",
+        host_mode=host_mode,
+        use_hashequiv=use_hashequiv,
+    )
+
+
+def test_build_env_omits_bb_hashserve_when_use_hashequiv_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When cfg.use_hashequiv is False, BB_HASHSERVE is not set (overlay falls back to auto)."""
+    monkeypatch.delenv("BB_HASHSERVE", raising=False)
+    cfg = _hashequiv_cfg(tmp_path, use_hashequiv=False)
+
+    env = _build_env(cfg)
+
+    assert "BB_HASHSERVE" not in env
+
+
+def test_build_env_host_mode_keeps_localhost_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Host mode: ensure_running's localhost URL is set verbatim."""
+    monkeypatch.delenv("BB_HASHSERVE", raising=False)
+    monkeypatch.setattr(
+        "bspctl.steps.kas_build.hashserv.ensure_running",
+        lambda _root: "ws://localhost:50000",
+    )
+    cfg = _hashequiv_cfg(tmp_path, use_hashequiv=True, host_mode=True)
+
+    env = _build_env(cfg)
+
+    assert env["BB_HASHSERVE"] == "ws://localhost:50000"
+
+
+def test_build_env_container_mode_rewrites_to_host_docker_internal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Container mode: localhost is rewritten to host.docker.internal so the container can reach it."""
+    monkeypatch.delenv("BB_HASHSERVE", raising=False)
+    monkeypatch.setattr(
+        "bspctl.steps.kas_build.hashserv.ensure_running",
+        lambda _root: "ws://localhost:50000",
+    )
+    cfg = _hashequiv_cfg(tmp_path, use_hashequiv=True, host_mode=False)
+
+    env = _build_env(cfg)
+
+    assert env["BB_HASHSERVE"] == "ws://host.docker.internal:50000"
+
+
+def test_build_env_omits_bb_hashserve_when_ensure_running_returns_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When ensure_running returns None, BB_HASHSERVE is not set so the overlay falls back to auto."""
+    monkeypatch.delenv("BB_HASHSERVE", raising=False)
+    monkeypatch.setattr(
+        "bspctl.steps.kas_build.hashserv.ensure_running",
+        lambda _root: None,
+    )
+    cfg = _hashequiv_cfg(tmp_path, use_hashequiv=True, host_mode=False)
+
+    env = _build_env(cfg)
+
+    assert "BB_HASHSERVE" not in env

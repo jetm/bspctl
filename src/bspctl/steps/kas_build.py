@@ -39,6 +39,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from bspctl import hashserv
 from bspctl.kas import KasGenOptions, write_yaml
 
 if TYPE_CHECKING:
@@ -692,6 +693,17 @@ def _build_env(cfg: BuildConfig, python_executable: Path | None = None) -> dict[
         passthrough["BB_PRESSURE_MAX_IO"] = str(cfg.pressure_max_io)
     if cfg.pressure_max_memory is not None:
         passthrough["BB_PRESSURE_MAX_MEMORY"] = str(cfg.pressure_max_memory)
+    # Persistent hashserv: when enabled, ensure the workspace-scoped
+    # daemon is running and rewrite the URL for container reachability.
+    # The overlay's BB_HASHSERVE = ${@os.environ.get('BB_HASHSERVE', 'auto')}
+    # falls through to "auto" when this block omits the key.
+    if cfg.use_hashequiv:
+        url = hashserv.ensure_running(cfg.bsp_root)
+        if url is not None:
+            if cfg.host_mode:
+                passthrough["BB_HASHSERVE"] = url
+            else:
+                passthrough["BB_HASHSERVE"] = url.replace("localhost", "host.docker.internal")
     if cfg.is_meta_avocado:
         passthrough["KAS_WORK_DIR"] = str(cfg.workspace)
         passthrough["KAS_BUILD_DIR"] = str(cfg.bsp_root / "build")
