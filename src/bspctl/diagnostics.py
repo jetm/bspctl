@@ -21,6 +21,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -1087,6 +1088,60 @@ def check_ccache_health(cfg: BuildConfig) -> CheckResult:
     )
 
 
+def check_hashserv(cfg: BuildConfig) -> CheckResult:
+    """Verify the workspace hashserv daemon is reachable when configured.
+
+    SKIP at INFO severity when ``cfg.use_hashequiv`` is False - the user
+    did not opt into the persistent daemon so the overlay's ``auto``
+    fallback is in play and there is nothing to inspect.
+
+    When configured, the check probes three layers in order: (1) the
+    recorded PID is alive AND its cmdline names ``bitbake-hashserv``
+    (delegated to :func:`bspctl.hashserv.is_running`), (2) the port
+    file under ``<bsp_root>/.bspctl/`` is still present (a concurrent
+    ``bspctl hashserv stop`` between the PID-liveness probe and the
+    port read is treated as "not running"), and (3) a TCP
+    ``create_connection`` to ``127.0.0.1:<port>`` succeeds within 1s.
+    Only when all three pass does the check PASS at WARN severity.
+    """
+    from bspctl import hashserv
+
+    name = "hashserv"
+    if not cfg.use_hashequiv:
+        return _skip(name, Severity.INFO, "hashserv daemon not configured ([build] hashserv = false)")
+
+    not_running_msg = "hashserv configured but daemon is not running"
+    not_running_hint = "bspctl hashserv start"
+
+    if not hashserv.is_running(cfg.bsp_root):
+        return _fail(name, Severity.WARN, not_running_msg, fix_hint=not_running_hint)
+
+    state_dir = cfg.bsp_root / ".bspctl"
+    port_file = state_dir / "hashserv.port"
+    pid_file = state_dir / "hashserv.pid"
+
+    try:
+        port = int(port_file.read_text().strip())
+    except FileNotFoundError:
+        return _fail(name, Severity.WARN, not_running_msg, fix_hint=not_running_hint)
+
+    try:
+        pid = int(pid_file.read_text().strip())
+    except FileNotFoundError:
+        return _fail(name, Severity.WARN, not_running_msg, fix_hint=not_running_hint)
+
+    try:
+        sock = socket.create_connection(("127.0.0.1", port), timeout=1.0)
+    except OSError:
+        return _fail(
+            name,
+            Severity.WARN,
+            f"daemon configured but unreachable at ws://localhost:{port} (PID {pid} alive, TCP probe failed)",
+            fix_hint="bspctl hashserv stop && bspctl hashserv start",
+        )
+    sock.close()
+    return _ok(name, Severity.WARN, f"running at ws://localhost:{port} (PID {pid})")
+
 # Checks that run unconditionally for every BSP family. Per-BSP extras
 # are sourced from ``BspModel.doctor_extras`` at dispatch time.
 #
@@ -1099,10 +1154,11 @@ def check_ccache_health(cfg: BuildConfig) -> CheckResult:
 # to _DOCKER_CHECKS; it must run in both container and host mode.
 #
 # NOTE: ``check_git_global_config``, ``check_kas_yaml_syntax``,
-# ``check_workspace_filesystem``, and ``check_ccache_health`` are NOT in
-# ``_DOCKER_CHECKS`` - they exercise host-side resources (git config,
-# host kas binary, host /proc/mounts, host ccache) reachable in both
-# container and host mode.
+# ``check_workspace_filesystem``, ``check_ccache_health``, and
+# ``check_hashserv`` are NOT in ``_DOCKER_CHECKS`` - they exercise
+# host-side resources (git config, host kas binary, host /proc/mounts,
+# host ccache, host hashserv daemon) reachable in both container and
+# host mode.
 SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_host_tools,
     check_docker_daemon,
@@ -1124,6 +1180,7 @@ SHARED_CHECKS: tuple[CheckFunc, ...] = (
     check_docker_version,
     check_docker_storage_driver,
     check_ccache_health,
+    check_hashserv,
 )
 
 # Docker-dependent checks from ``SHARED_CHECKS``. Filtered out of

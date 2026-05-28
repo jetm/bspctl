@@ -967,3 +967,156 @@ def test_docker_checks_membership_invariant() -> None:
     assert check_kas_yaml_syntax not in _DOCKER_CHECKS
     assert check_workspace_filesystem not in _DOCKER_CHECKS
     assert check_ccache_health not in _DOCKER_CHECKS
+
+
+# ---------------------------------------------------------------------------
+# check_hashserv tests
+# ---------------------------------------------------------------------------
+
+
+def _hashserv_cfg(workspace: Path, *, use_hashequiv: bool = True) -> BuildConfig:
+    """BuildConfig with cfg.bsp_root = workspace/nxp (NXP family default)."""
+    return BuildConfig(
+        workspace=workspace,
+        bsp_family="nxp",  # type: ignore[arg-type]
+        machine="imx8mp-var-dart",
+        distro="fsl-imx-xwayland",
+        image="core-image-minimal",
+        manifest="imx-6.6.52-2.2.2.xml",
+        repo_url="https://example.invalid/repo.git",
+        repo_branch="imx-6.6.52-2.2.2",
+        container_image="jetm/kas-build-env:5.2-f40",
+        use_hashequiv=use_hashequiv,
+    )
+
+
+class _FakeSocket:
+    """Minimal socket stand-in: only ``close()`` is exercised by the check."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_check_hashserv_skip_when_disabled(tmp_path: Path) -> None:
+    """use_hashequiv=False short-circuits to SKIP / INFO without probing anything."""
+    from bspctl.diagnostics import check_hashserv
+
+    cfg = _hashserv_cfg(tmp_path, use_hashequiv=False)
+    result = check_hashserv(cfg)
+
+    assert result.status == Status.SKIP
+    assert result.severity == Severity.INFO
+    assert "not configured" in result.message
+    assert "[build] hashserv = false" in result.message
+
+
+def test_check_hashserv_pass_when_running_and_port_listens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """is_running True + port file present + TCP probe succeeds -> PASS / WARN."""
+    from bspctl import diagnostics
+    from bspctl.diagnostics import check_hashserv
+
+    bsp_root = tmp_path / "nxp"
+    state_dir = bsp_root / ".bspctl"
+    state_dir.mkdir(parents=True)
+    (state_dir / "hashserv.pid").write_text("12345\n")
+    (state_dir / "hashserv.port").write_text("50001\n")
+
+    monkeypatch.setattr("bspctl.hashserv.is_running", lambda _root: True)
+    fake_sock = _FakeSocket()
+    monkeypatch.setattr(
+        diagnostics.socket,
+        "create_connection",
+        lambda _addr, timeout=None: fake_sock,  # noqa: ARG005
+    )
+
+    cfg = _hashserv_cfg(tmp_path, use_hashequiv=True)
+    result = check_hashserv(cfg)
+
+    assert result.status == Status.PASS
+    assert result.severity == Severity.WARN
+    assert "ws://localhost:50001" in result.message
+    assert "12345" in result.message
+    assert fake_sock.closed is True
+
+
+def test_check_hashserv_fail_when_configured_but_not_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """use_hashequiv=True + is_running=False -> FAIL / WARN with not-running message."""
+    from bspctl.diagnostics import check_hashserv
+
+    monkeypatch.setattr("bspctl.hashserv.is_running", lambda _root: False)
+
+    cfg = _hashserv_cfg(tmp_path, use_hashequiv=True)
+    result = check_hashserv(cfg)
+
+    assert result.status == Status.FAIL
+    assert result.severity == Severity.WARN
+    assert "not running" in result.message
+    assert result.fix_hint == "bspctl hashserv start"
+
+
+def test_check_hashserv_fail_when_port_unreachable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """is_running True but TCP probe raises ConnectionRefusedError -> FAIL / WARN."""
+    from bspctl import diagnostics
+    from bspctl.diagnostics import check_hashserv
+
+    bsp_root = tmp_path / "nxp"
+    state_dir = bsp_root / ".bspctl"
+    state_dir.mkdir(parents=True)
+    (state_dir / "hashserv.pid").write_text("99999\n")
+    (state_dir / "hashserv.port").write_text("50002\n")
+
+    monkeypatch.setattr("bspctl.hashserv.is_running", lambda _root: True)
+
+    def _raise(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        raise ConnectionRefusedError("nothing on that port")
+
+    monkeypatch.setattr(diagnostics.socket, "create_connection", _raise)
+
+    cfg = _hashserv_cfg(tmp_path, use_hashequiv=True)
+    result = check_hashserv(cfg)
+
+    assert result.status == Status.FAIL
+    assert result.severity == Severity.WARN
+    assert "TCP probe failed" in result.message
+    assert "ws://localhost:50002" in result.message
+    assert "99999" in result.message
+    assert result.fix_hint == "bspctl hashserv stop && bspctl hashserv start"
+
+
+def test_check_hashserv_fail_when_port_file_deleted_mid_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """is_running True but port file absent (concurrent stop) -> FAIL, no exception."""
+    from bspctl.diagnostics import check_hashserv
+
+    monkeypatch.setattr("bspctl.hashserv.is_running", lambda _root: True)
+
+    cfg = _hashserv_cfg(tmp_path, use_hashequiv=True)
+    # State dir does not exist; port file read will raise FileNotFoundError.
+    result = check_hashserv(cfg)
+
+    assert result.status == Status.FAIL
+    assert result.severity == Severity.WARN
+    assert "not running" in result.message
+    assert result.fix_hint == "bspctl hashserv start"
+
+
+def test_check_hashserv_in_shared_not_in_docker() -> None:
+    """check_hashserv runs everywhere - the daemon is host-side in both modes."""
+    from bspctl.diagnostics import (
+        _DOCKER_CHECKS,
+        SHARED_CHECKS,
+        check_hashserv,
+    )
+
+    assert check_hashserv in SHARED_CHECKS
+    assert check_hashserv not in _DOCKER_CHECKS
