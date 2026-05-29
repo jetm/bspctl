@@ -1,3 +1,7 @@
+> **This project has been migrated to
+> [bakar](https://github.com/jetm/bakar) and is no longer
+> maintained here.**
+
 [![CI](https://github.com/jetm/bspctl/actions/workflows/ci.yml/badge.svg)](https://github.com/jetm/bspctl/actions/workflows/ci.yml)
 
 # bspctl
